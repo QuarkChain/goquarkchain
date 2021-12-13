@@ -3,6 +3,9 @@ package qkcapi
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -31,28 +34,43 @@ func (e *NetApi) Version() string {
 	return resp.Result.(string)
 }
 
+type Web3Api struct {
+}
+
+func NewWeb3Api(c jsonrpc.RPCClient) *Web3Api {
+	return &Web3Api{}
+}
+
+func (e *Web3Api) ClientVersion() string {
+	return "GoQuarkChain/release:mainnet1.5.2"
+}
+
 type ShardAPI struct {
 	fullShardID uint32
 	chainID     uint32
+	hashMap     map[common.Hash]common.Hash
 
 	c jsonrpc.RPCClient
 }
 
 func NewShardAPI(fullShardID uint32, chainID uint32, client jsonrpc.RPCClient) *ShardAPI {
-	return &ShardAPI{fullShardID: fullShardID, chainID: chainID, c: client}
+	return &ShardAPI{fullShardID: fullShardID, chainID: chainID, hashMap: make(map[common.Hash]common.Hash), c: client}
 }
 
 func (s *ShardAPI) ChainId() hexutil.Uint64 {
 	return hexutil.Uint64(s.chainID)
 }
 
-func (s *ShardAPI) GasPrice() (hexutil.Uint64, error) {
+func (s *ShardAPI) GasPrice() (*hexutil.Big, error) {
 	resp, err := s.c.Call("gasPrice", hexutil.EncodeUint64(uint64(s.fullShardID)))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	gasPrice, err := hexutil.DecodeUint64(resp.Result.(string))
-	return hexutil.Uint64(gasPrice), err
+	gasPrice, err := hexutil.DecodeBig(resp.Result.(string))
+	if gasPrice.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		gasPrice = new(big.Int).SetUint64(1)
+	}
+	return (*hexutil.Big)(gasPrice), nil
 }
 
 func (s *ShardAPI) GetBalance(address common.Address, blockNrOrHash string) (*hexutil.Big, error) {
@@ -84,6 +102,9 @@ func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
 }
 
 func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
+	if block == nil {
+		return nil
+	}
 	// Truncate fields which contain full shard id
 	if block["id"] != nil {
 		block["id"] = block["id"].(string)[:66]
@@ -101,11 +122,39 @@ func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
 	if block["hashPrevMinorBlock"] != nil {
 		block["parentHash"] = block["hashPrevMinorBlock"]
 	}
+	if block["nonce"] != nil {
+		nonce, _ := strconv.ParseUint(block["nonce"].(string)[2:], 16, 32)
+		block["nonce"] = fmt.Sprintf("0x%016x", nonce)
+	}
+	if block["sha3Uncles"] == nil {
+		block["sha3Uncles"] = types.EmptyUncleHash
+	}
+	if block["hashMerkleRoot"] != nil {
+		block["transactionsRoot"] = block["hashMerkleRoot"]
+	}
+	if block["hashEvmStateRoot"] != nil {
+		block["stateRoot"] = block["hashEvmStateRoot"]
+	}
+	if block["receiptsRoot"] == nil {
+		block["receiptsRoot"] = common.ToHex(common.Hash{}.Bytes())
+	}
+	if block["logsBloom"] == nil {
+		block["logsBloom"] = common.ToHex(make([]byte, types.BloomByteLength))
+	}
 	return block
 }
 
-func (s *ShardAPI) GetBlockByNumber(blockNr *hexutil.Uint64, fullTx bool) (map[string]interface{}, error) {
-	resp, err := s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), blockNr, false)
+func (s *ShardAPI) GetBlockByNumber(blockNr string, fullTx bool) (map[string]interface{}, error) {
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "latest" {
+		resp, err = s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), nil, fullTx)
+	} else {
+		resp, err = s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), blockNr, fullTx)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +166,16 @@ func (s *ShardAPI) GetBlockByNumber(blockNr *hexutil.Uint64, fullTx bool) (map[s
 }
 
 func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr string) (hexutil.Uint64, error) {
-	resp, err := s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "pending" {
+		resp, err = s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), nil)
+	} else {
+		resp, err = s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	}
+
 	if err != nil {
 		return 0, err
 	}
@@ -126,7 +184,15 @@ func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr string) (
 }
 
 func (s *ShardAPI) GetCode(address common.Address, blockNr string) (hexutil.Bytes, error) {
-	resp, err := s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "pending" {
+		resp, err = s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), nil)
+	} else {
+		resp, err = s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +236,7 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
+	s.hashMap[tx.Hash()] = txQkc.Hash()
 	return txQkc.Hash(), nil
 }
 
@@ -183,22 +250,63 @@ func (s *ShardAPI) getTxIDInShard(h common.Hash) []byte {
 	return txID
 }
 
-func (s *ShardAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{}, error) {
+func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interface{}, error) {
+	hash, ok := s.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	resp, err := s.c.Call("getTransactionById", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
 		return nil, err
 	}
-	return resp.Result.(map[string]interface{}), nil
+	if resp.Result == nil {
+		return nil, nil
+	}
+	ans := resp.Result.(map[string]interface{})
+	if ans["from"] != nil {
+		ans["from"] = ans["from"].(string)[:42]
+	}
+	if ans["to"] != nil {
+		to := ans["to"].(string)
+		if len(to) > 42 {
+			ans["to"] = to[:42]
+		} else if len(to) <= 2 { // remove to if it is empty (0x)
+			delete(ans, "to")
+		}
+	}
+	if ans["data"] != nil {
+		ans["input"] = ans["data"]
+	}
+	if ans["blockId"] != nil {
+		ans["blockHash"] = ans["blockId"].(string)[:66]
+	}
+	if ans["blockHeight"] != nil {
+		ans["blockNumber"] = ans["blockHeight"]
+	}
+	return ans, nil
 }
 
-func (s *ShardAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
+func (s *ShardAPI) GetTransactionReceipt(ethhash common.Hash) (map[string]interface{}, error) {
+	hash, ok := s.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	resp, err := s.c.Call("getTransactionReceipt", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
 		return nil, err
 	}
+	if resp.Result == nil {
+		return nil, nil
+	}
 	ans := resp.Result.(map[string]interface{})
 	if ans["contractAddress"] != nil {
-		ans["contractAddress"] = ans["contractAddress"].(string)[:42]
+		contractAddress := ans["contractAddress"].(string)
+		if len(contractAddress) > 42 {
+			ans["contractAddress"] = contractAddress[:42]
+		}
+	}
+	if ans["logsBloom"] == nil {
+		ans["logsBloom"] = common.ToHex(make([]byte, types.BloomByteLength))
 	}
 	return ans, nil
 }
