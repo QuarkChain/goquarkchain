@@ -451,19 +451,23 @@ func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address com
 type MetaCallArgs struct {
 	From     account.Recipient  `json:"from"`
 	To       *account.Recipient `json:"to"`
-	Gas      hexutil.Uint64     `json:"gas"`
+	Gas      *hexutil.Uint64    `json:"gas"`
 	GasPrice *hexutil.Big       `json:"gasPrice"`
 	Value    *hexutil.Big       `json:"value"`
 	Data     hexutil.Bytes      `json:"data"`
 }
 
 func toTransaction(a *MetaCallArgs, shardId uint32, networkID uint32) *types.Transaction {
+	var gas uint64 = 0
+	if a.Gas != nil {
+		gas = uint64(*a.Gas)
+	}
 	evmTx := new(types.EvmTransaction)
 	if a.To == nil {
-		evmTx = types.NewEvmContractCreation(0, a.Value.ToInt(), uint64(a.Gas), a.GasPrice.ToInt(),
+		evmTx = types.NewEvmContractCreation(0, a.Value.ToInt(), gas, a.GasPrice.ToInt(),
 			shardId, shardId, networkID, 0, a.Data, defaultToken, defaultToken)
 	} else {
-		evmTx = types.NewEvmTransaction(0, *a.To, a.Value.ToInt(), uint64(a.Gas), a.GasPrice.ToInt(),
+		evmTx = types.NewEvmTransaction(0, *a.To, a.Value.ToInt(), gas, a.GasPrice.ToInt(),
 			shardId, shardId, networkID, 0, a.Data, defaultToken, defaultToken)
 	}
 	tx := &types.Transaction{
