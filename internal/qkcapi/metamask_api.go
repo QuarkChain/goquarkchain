@@ -3,7 +3,9 @@ package qkcapi
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -120,6 +122,25 @@ func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
 	if block["hashPrevMinorBlock"] != nil {
 		block["parentHash"] = block["hashPrevMinorBlock"]
 	}
+	if block["nonce"] != nil {
+		nonce, _ := strconv.ParseUint(block["nonce"].(string)[2:], 16, 32)
+		block["nonce"] = fmt.Sprintf("0x%016x", nonce)
+	}
+	if block["sha3Uncles"] == nil {
+		block["sha3Uncles"] = types.EmptyUncleHash
+	}
+	if block["hashMerkleRoot"] != nil {
+		block["transactionsRoot"] = block["hashMerkleRoot"]
+	}
+	if block["hashEvmStateRoot"] != nil {
+		block["stateRoot"] = block["hashEvmStateRoot"]
+	}
+	if block["receiptsRoot"] == nil {
+		block["receiptsRoot"] = common.ToHex(common.Hash{}.Bytes())
+	}
+	if block["logsBloom"] == nil {
+		block["logsBloom"] = common.ToHex(make([]byte, types.BloomByteLength))
+	}
 	return block
 }
 
@@ -163,7 +184,15 @@ func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr string) (
 }
 
 func (s *ShardAPI) GetCode(address common.Address, blockNr string) (hexutil.Bytes, error) {
-	resp, err := s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "pending" {
+		resp, err = s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), nil)
+	} else {
+		resp, err = s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	}
 	if err != nil {
 		return nil, err
 	}
