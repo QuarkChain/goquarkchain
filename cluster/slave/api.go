@@ -469,10 +469,10 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 		err    error
 	)
 	if blockNr == nil || blockNr.Int64() < 0 {
-		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{mdata.From, api.shardId}, nil)
+		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{Recipient: mdata.From, FullShardKey: api.shardId}, nil)
 	} else {
 		number := blockNr.Uint64()
-		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{mdata.From, api.shardId}, &number)
+		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{Recipient: mdata.From, FullShardKey: api.shardId}, &number)
 	}
 
 	if err != nil {
@@ -484,7 +484,7 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 
 func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
-	result, err := api.getShardFilter().EstimateGas(tx, &account.Address{mdata.From, api.shardId})
+	result, err := api.getShardFilter().EstimateGas(tx, &account.Address{Recipient: mdata.From, FullShardKey: api.shardId})
 	return hexutil.Uint(result), err
 }
 
