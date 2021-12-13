@@ -166,11 +166,15 @@ func (s *ShardBackend) GasPrice(tokenID uint64) (uint64, error) {
 
 func (s *ShardBackend) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
 	var hash *common.Hash = nil
-	header := s.MinorBlockChain.GetHeaderByNumber(*height)
-	if header != nil {
-		return nil, errors.New(fmt.Sprintf("Cannot get %d", *height))
+	if height != nil {
+		header := s.MinorBlockChain.GetHeaderByNumber(*height)
+		if header != nil {
+			return nil, errors.New(fmt.Sprintf("Cannot get %d", *height))
+		}
+		h := header.Hash()
+		hash = &h
 	}
-	*hash = header.Hash()
+
 	return s.MinorBlockChain.GetCode(recipient, hash)
 }
 
@@ -273,7 +277,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 			mBlock = block.(*types.MinorBlock)
 		}
 	} else {
-		return nil, errors.New("invalied params in GetMinorBlock")
+		mBlock = s.MinorBlockChain.CurrentBlock()
 	}
 	if mBlock != nil {
 		return
