@@ -59,10 +59,16 @@ func main() {
 			Service:   qkcapi.NewNetApi(qkcClient),
 			Public:    true,
 		})
+		api = append(api, rpc.API{
+			Namespace: "web3",
+			Version:   "1.0",
+			Service:   qkcapi.NewWeb3Api(qkcClient),
+			Public:    true,
+		})
 		apis = append(apis, api)
 	}
 	for index, api := range apis {
-		if _, _, err := rpc.StartHTTPEndpoint(config.ShardConfigs[index].ShardRPC, api, []string{"eth", "net"}, nil, config.VHost, rpc.DefaultHTTPTimeouts); err != nil {
+		if _, _, err := rpc.StartHTTPEndpoint(config.ShardConfigs[index].ShardRPC, api, []string{"eth", "net", "web3"}, nil, config.VHost, rpc.DefaultHTTPTimeouts); err != nil {
 			panic(err)
 		}
 	}
