@@ -35,8 +35,8 @@ func NewNetApi(version string) *NetApi {
 	return &NetApi{version: version}
 }
 
-func (e *NetApi) Version() string {
-	return e.version
+func (api *NetApi) Version() string {
+	return api.version
 }
 
 // filter is a helper struct that holds meta information over the filter type
@@ -262,10 +262,10 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 	shardId := api.shardId - (api.shardId & 65535)
 	if ethtx.To() != nil {
 		evmTx = types.NewEvmTransaction(ethtx.Nonce(), *ethtx.To(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), shardId,
-			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), defaultToken, defaultToken)
 	} else {
 		evmTx = types.NewEvmContractCreation(ethtx.Nonce(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), shardId,
-			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), defaultToken, defaultToken)
 	}
 	evmTx.SetVRS(ethtx.RawSignatureValues())
 	tx := &types.Transaction{
@@ -350,7 +350,6 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 	if !ok {
 		hash = ethhash
 	}
-	// Try to return an already finalized transaction
 	log.Info("GetTransactionByHash:", "ethhash", common.Bytes2Hex(ethhash.Bytes()), "hash", common.Bytes2Hex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
@@ -360,11 +359,10 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 		return nil, fmt.Errorf("GetTransactionByHash error %s", hash)
 	}
 	tx := block.GetTransactions()[index]
-	log.Info("GetTransactionByHash: get block and tx", "index", index)
+
 	if block.NumberU64() == 0 {
 		return encoder.NewRPCTransaction(tx, common.Hash{}, 0, 0), nil
 	}
-	// Transaction unknown, return as such
 	return encoder.NewRPCTransaction(tx, block.Hash(), block.Number(), uint64(index)), nil
 }
 

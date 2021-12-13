@@ -145,7 +145,8 @@ func (s *ShardBackend) GetTransactionCount(address common.Address, blockNrOrHash
 		if header == nil {
 			return nil, errors.New("block not found")
 		}
-		*hash = header.Hash()
+		h := header.Hash()
+		hash = &h
 	}
 
 	nonce, err := s.MinorBlockChain.GetTransactionCount(address, hash)
@@ -168,7 +169,7 @@ func (s *ShardBackend) GetCode(recipient account.Recipient, height *uint64) ([]b
 	var hash *common.Hash = nil
 	if height != nil {
 		header := s.MinorBlockChain.GetHeaderByNumber(*height)
-		if header != nil {
+		if header == nil {
 			return nil, errors.New(fmt.Sprintf("Cannot get %d", *height))
 		}
 		h := header.Hash()
