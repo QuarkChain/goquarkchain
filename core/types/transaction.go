@@ -48,10 +48,10 @@ type txdata struct {
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
 	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
-	FromFullShardKey *Uint32            `json:"fromfullshardkey"    gencodec:"required"`
-	ToFullShardKey   *Uint32            `json:"tofullshardkey"      gencodec:"required"`
-	GasTokenID       uint64             `json:"gas_token_id"    gencodec:"required"`
-	TransferTokenID  uint64             `json:"transfer_token_id"    gencodec:"required"`
+	FromFullShardKey *Uint32            `json:"fromfullshardkey"   gencodec:"required"`
+	ToFullShardKey   *Uint32            `json:"tofullshardkey"     gencodec:"required"`
+	GasTokenID       uint64             `json:"gas_token_id"       gencodec:"required"`
+	TransferTokenID  uint64             `json:"transfer_token_id"  gencodec:"required"`
 	Version          uint32             `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`
@@ -62,7 +62,8 @@ type txdata struct {
 	Hash *common.Hash `json:"hash"              rlp:"-"`
 }
 
-func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32,
+	toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
 	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 

@@ -247,13 +247,13 @@ func TestEstimateGas(t *testing.T) {
 		return createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(123456), nil, nil, nil, data, nil, nil)
 	}
 	tx := txGen([]byte{})
-	estimate, err := shardState.EstimateGas(tx, acc1)
+	estimate, err := shardState.EstimateGas(tx, &acc1)
 	checkErr(err)
 
 	assert.Equal(t, estimate, uint32(21000))
 
 	newTx := txGen([]byte("12123478123412348125936583475758"))
-	estimate, err = shardState.EstimateGas(newTx, acc1)
+	estimate, err = shardState.EstimateGas(newTx, &acc1)
 	checkErr(err)
 	assert.Equal(t, estimate, uint32(23176))
 }

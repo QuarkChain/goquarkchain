@@ -214,7 +214,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 	if tx.EvmTx.GasTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
 		return fmt.Errorf("Wrong gasTokenID:%v in version=2.", tx.EvmTx.GasTokenID())
 	}
-	if tx.EvmTx.NetworkId() != uint32(m.EthChainID().Uint64()) {
+	if tx.EvmTx.NetworkId() != m.EthChainID() {
 		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
 	}
 	return nil
@@ -631,6 +631,11 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
+}
+
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
+	errList := m.txPool.AddLocals(txs)
+	return errList
 }
 
 func (m *MinorBlockChain) getEvmStateByHash(hash *common.Hash) (*state.StateDB, error) {
@@ -1218,7 +1223,7 @@ func (m *MinorBlockChain) GetPendingCount() int {
 }
 
 // EstimateGas estimate gas for this tx
-func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	// no need to locks
 	if tx.EvmTx.Gas() > math.MaxUint32 {
 		return 0, errors.New("gas > maxInt31")
@@ -1260,7 +1265,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		evmState.SetGasUsed(new(big.Int).SetUint64(0))
 		uint64Gas := uint64(gas)
-		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
+		evmTx, err := m.validateTx(tx, evmState, fromAddress, &uint64Gas, nil)
 		if err != nil {
 			return err
 		}
@@ -1869,9 +1874,4 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 	stakePreBlock := m.DecayByHeightAndTime(m.CurrentBlock().NumberU64(), m.CurrentBlock().Time())
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address, stakePreBlock)
 	return
-}
-
-func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
-	errList := m.txPool.AddLocals(txs)
-	return errList
 }

@@ -3,6 +3,7 @@ package encoder
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -165,6 +166,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader, meta *types.MinorBl
 		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
 		"hashPrevRootBlock":  header.PrevRootBlockHash,
 		"nonce":              EncodeNonce(header.Nonce),
+		"mixHash":            header.MixDigest,
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
@@ -189,9 +191,6 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	}
 	header := block.Header()
 	meta := block.Meta()
-	if err != nil {
-		return nil, err
-	}
 	field, err := MinorBlockHeaderEncoder(header, meta)
 	if err != nil {
 		return nil, err
@@ -223,6 +222,112 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		field["stakingApplied"] = extraInfo.EffectiveDifficulty.Cmp(header.Difficulty) < 0
 	}
 	return field, nil
+}
+
+// RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
+type RPCTransaction struct {
+	BlockHash        *ethCommon.Hash    `json:"blockHash"`
+	BlockNumber      *hexutil.Big       `json:"blockNumber"`
+	From             ethCommon.Address  `json:"from"`
+	Gas              hexutil.Uint64     `json:"gas"`
+	GasPrice         *hexutil.Big       `json:"gasPrice"`
+	Hash             ethCommon.Hash     `json:"hash"`
+	Input            hexutil.Bytes      `json:"input"`
+	Nonce            hexutil.Uint64     `json:"nonce"`
+	To               *ethCommon.Address `json:"to"`
+	TransactionIndex *hexutil.Uint64    `json:"transactionIndex"`
+	Value            *hexutil.Big       `json:"value"`
+	V                *hexutil.Big       `json:"v"`
+	R                *hexutil.Big       `json:"r"`
+	S                *hexutil.Big       `json:"s"`
+}
+
+// NewRPCTransaction returns a transaction that will serialize to the RPC
+// representation, with the given location metadata set (if available).
+func NewRPCTransaction(tx *types.Transaction, blockHash ethCommon.Hash, blockNumber uint64, index uint64) *RPCTransaction {
+	var signer types.Signer = types.MakeSigner(tx.EvmTx.NetworkId())
+	from, _ := types.Sender(signer, tx.EvmTx)
+	v, r, s := tx.EvmTx.RawSignatureValues()
+
+	result := &RPCTransaction{
+		From:     from,
+		Gas:      hexutil.Uint64(tx.EvmTx.Gas()),
+		GasPrice: (*hexutil.Big)(tx.EvmTx.GasPrice()),
+		Hash:     tx.Hash(),
+		Input:    hexutil.Bytes(tx.EvmTx.Data()),
+		Nonce:    hexutil.Uint64(tx.EvmTx.Nonce()),
+		To:       tx.EvmTx.To(),
+		Value:    (*hexutil.Big)(tx.EvmTx.Value()),
+		V:        (*hexutil.Big)(v),
+		R:        (*hexutil.Big)(r),
+		S:        (*hexutil.Big)(s),
+	}
+	if blockHash != (ethCommon.Hash{}) {
+		result.BlockHash = &blockHash
+		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
+		result.TransactionIndex = (*hexutil.Uint64)(&index)
+	}
+	return result
+}
+
+func MinorBlockHeaderEncoderForEthClient(header *types.MinorBlockHeader, meta *types.MinorBlockMeta) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"number":           hexutil.Uint64(header.Number),
+		"hash":             header.Hash(),
+		"parentHash":       header.ParentHash,
+		"nonce":            EncodeNonce(header.Nonce),
+		"mixHash":          header.MixDigest,
+		"miner":            header.Coinbase.Recipient,
+		"coinbase":         (BalancesEncoder)(header.CoinbaseAmount),
+		"difficulty":       (*hexutil.Big)(header.Difficulty),
+		"extraData":        hexutil.Bytes(header.Extra),
+		"gasLimit":         (*hexutil.Big)(header.GasLimit.Value),
+		"timestamp":        hexutil.Uint64(header.Time),
+		"logsBloom":        header.Bloom,
+		"sha3Uncles":       types.EmptyUncleHash,
+		"transactionsRoot": meta.TxHash,
+		"stateRoot":        meta.Root,
+		"receiptsRoot":     meta.ReceiptHash,
+		"gasUsed":          (*hexutil.Big)(meta.GasUsed.Value),
+	}, nil
+}
+
+func MinorBlockEncoderForEthClient(block *types.MinorBlock, includeTransaction bool, fullTx bool) (map[string]interface{}, error) {
+	serData, err := serialize.SerializeToBytes(block)
+	if err != nil {
+		return nil, err
+	}
+	header := block.Header()
+	meta := block.Meta()
+	fields, err := MinorBlockHeaderEncoderForEthClient(header, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	fields["size"] = hexutil.Uint64(len(serData))
+
+	if includeTransaction {
+		formatTx := func(tx *types.Transaction, idx uint64) (interface{}, error) {
+			return tx.Hash(), nil
+		}
+		if fullTx {
+			formatTx = func(tx *types.Transaction, idx uint64) (interface{}, error) {
+				return NewRPCTransaction(tx, block.Hash(), block.Number(), idx), nil
+			}
+		}
+		txs := block.Transactions()
+		transactions := make([]interface{}, len(txs))
+		var err error
+		for i, tx := range txs {
+			if transactions[i], err = formatTx(tx, uint64(i)); err != nil {
+				return nil, err
+			}
+		}
+		fields["transactions"] = transactions
+	}
+	uncleHashes := make([]ethCommon.Hash, 0)
+	fields["uncles"] = uncleHashes
+	return fields, nil
 }
 
 func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {

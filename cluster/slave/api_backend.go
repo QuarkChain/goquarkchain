@@ -259,8 +259,8 @@ func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (
 
 func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	if shard, ok := s.shards[branch]; ok {
-		block, index, receipts := shard.MinorBlockChain.GetTransactionReceipt(txHash)
-		return block, index, receipts, nil
+		block, index, receipt := shard.MinorBlockChain.GetTransactionReceipt(txHash)
+		return block, index, receipt, nil
 	}
 	return nil, 0, nil, ErrMsg("GetTransactionReceipt")
 }
@@ -296,7 +296,7 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 		return 0, err
 	}
 	if shrd, ok := s.shards[fullShardId]; ok {
-		return shrd.MinorBlockChain.EstimateGas(tx, *address)
+		return shrd.MinorBlockChain.EstimateGas(tx, address)
 	}
 	return 0, ErrMsg("EstimateGas")
 }

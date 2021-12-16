@@ -18,7 +18,7 @@ var DefaultConfig = Config{
 	GRPCModules:     []string{"grpc"},
 	HTTPModules:     []string{"qkc", "eth", "net"},
 	HTTPPrivModules: []string{"qkc"},
-	WSModules:       []string{"ws", "eth"},
+	WSModules:       []string{"ws", "eth", "net"},
 	WSOrigins:       []string{"*"},
 	IPCPath:         "",
 	HTTPTimeouts:    rpc.DefaultHTTPTimeouts,

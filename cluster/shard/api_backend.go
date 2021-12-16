@@ -124,6 +124,61 @@ func (s *ShardBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, erro
 	return receipts, nil
 }
 
+func (s *ShardBackend) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
+	return s.MinorBlockChain.GetTransactionByHash(hash)
+}
+
+// GetTransactionCount returns the number of transactions the given address has sent for the given block number
+func (s *ShardBackend) GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error) {
+	// Ask transaction pool for the nonce which includes pending transactions
+	hash := blockNrOrHash.BlockHash
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		if blockNr == qrpc.PendingBlockNumber {
+			nonce, err := s.MinorBlockChain.GetPoolNonce(address)
+			if err != nil {
+				return nil, err
+			}
+			return &nonce, nil
+		}
+
+		header := s.MinorBlockChain.GetHeaderByNumber(blockNr.Uint64())
+		if header == nil {
+			return nil, errors.New("block not found")
+		}
+		h := header.Hash()
+		hash = &h
+	}
+
+	nonce, err := s.MinorBlockChain.GetTransactionCount(address, hash)
+	return &nonce, err
+}
+
+func (s *ShardBackend) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	return s.MinorBlockChain.ExecuteTx(tx, fromAddress, height)
+}
+
+func (s *ShardBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
+	return s.MinorBlockChain.EstimateGas(tx, fromAddress)
+}
+
+func (s *ShardBackend) GasPrice(tokenID uint64) (uint64, error) {
+	return s.MinorBlockChain.GasPrice(tokenID)
+}
+
+func (s *ShardBackend) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+	var hash *common.Hash = nil
+	if height != nil {
+		header := s.MinorBlockChain.GetHeaderByNumber(*height)
+		if header == nil {
+			return nil, errors.New(fmt.Sprintf("Cannot get %d", *height))
+		}
+		h := header.Hash()
+		hash = &h
+	}
+
+	return s.MinorBlockChain.GetCode(recipient, hash)
+}
+
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
@@ -165,6 +220,28 @@ func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorB
 	return iHeader.(*types.MinorBlockHeader), nil
 }
 
+func (s *ShardBackend) AddTransaction(tx *types.Transaction) error {
+	return s.MinorBlockChain.AddTx(tx)
+}
+
+func (s *ShardBackend) AddTransactionAndBroadcast(tx *types.Transaction) error {
+	err := s.MinorBlockChain.AddTx(tx)
+	go func() {
+		if err := s.conn.BroadcastTransactions("", s.branch.Value, []*types.Transaction{tx}); err != nil {
+			log.Error(s.logInfo, "broadcastTransaction err", err)
+		}
+	}()
+	return err
+}
+
+func (s *ShardBackend) GetEthChainID() uint32 {
+	return s.MinorBlockChain.EthChainID()
+}
+
+func (s *ShardBackend) GetNetworkId() uint32 {
+	return s.MinorBlockChain.Config().NetworkID
+}
+
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	s.wg.Add(1)
 	defer s.wg.Done()
@@ -201,7 +278,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 			mBlock = block.(*types.MinorBlock)
 		}
 	} else {
-		return nil, errors.New("invalied params in GetMinorBlock")
+		mBlock = s.MinorBlockChain.CurrentBlock()
 	}
 	if mBlock != nil {
 		return
@@ -343,7 +420,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // This function only adds blocks to local and propagate xshard list to other shards.
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
-
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

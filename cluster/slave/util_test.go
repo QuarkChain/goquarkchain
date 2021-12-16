@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -140,16 +142,6 @@ func (b *testBackend) GetFullShardList() []uint32 {
 	return []uint32{b.curShardId}
 }
 
-func (b *testBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
-	txs := b.mBlock.GetTransactions()
-	for idx, tx := range txs {
-		if tx.Hash() == txHash {
-			return b.mBlock, uint32(idx), nil
-		}
-	}
-	panic("not implemented")
-}
-
 func (b *testBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
 	panic("not implemented")
 }
@@ -163,6 +155,56 @@ func (b *testBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, error
 }
 
 func (b *testBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
+	panic("not implemented")
+}
+
+func (b *testBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error) {
+	panic("not implemented")
+}
+
+func (b *testBackend) AddTransaction(tx *types.Transaction) error {
+	panic("not implemented")
+}
+
+func (b *testBackend) AddTransactionAndBroadcast(tx *types.Transaction) error {
+	panic("not implemented")
+}
+
+func (b *testBackend) GetEthChainID() uint32 {
+	panic("not implemented")
+}
+
+func (b *testBackend) GetNetworkId() uint32 {
+	panic("not implemented")
+}
+
+func (b *testBackend) GetTransactionByHash(txHash common.Hash) (*types.MinorBlock, uint32) {
+	txs := b.mBlock.GetTransactions()
+	for idx, tx := range txs {
+		if tx.Hash() == txHash {
+			return b.mBlock, uint32(idx)
+		}
+	}
+	panic("not implemented")
+}
+
+func (b *testBackend) GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) GasPrice(tokenID uint64) (uint64, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
 	panic("not implemented")
 }
 

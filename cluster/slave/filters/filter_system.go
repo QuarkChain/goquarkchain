@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -59,7 +60,6 @@ var (
 )
 
 type SlaveFilter interface {
-	GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error)
 	GetShardFilter(fullShardId uint32) (ShardFilter, error)
 	GetFullShardList() []uint32
 }
@@ -68,6 +68,17 @@ type ShardFilter interface {
 	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
+	GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error)
+	AddTransaction(tx *types.Transaction) error
+	AddTransactionAndBroadcast(tx *types.Transaction) error
+	GetEthChainID() uint32
+	GetNetworkId() uint32
+	GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32)
+	GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error)
+	ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
+	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
+	GasPrice(tokenID uint64) (uint64, error)
+	GetCode(recipient account.Recipient, height *uint64) ([]byte, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription

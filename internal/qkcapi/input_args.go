@@ -72,10 +72,11 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 	}
 	evmTx := new(types.EvmTransaction)
 	if c.To == nil {
-		evmTx = types.NewEvmContractCreation(0, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), c.From.FullShardKey, c.From.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
+		evmTx = types.NewEvmContractCreation(0, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(),
+			c.From.FullShardKey, c.From.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
 	} else {
-		evmTx = types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),
-			c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
+		evmTx = types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(),
+			c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
 	}
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
@@ -133,6 +134,7 @@ func (c *CreateTxArgs) setDefaults(config *config.QuarkChainConfig) error {
 	}
 	return nil
 }
+
 func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction {
 	var (
 		evmTx *types.EvmTransaction

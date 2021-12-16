@@ -106,6 +106,13 @@ func (s *SlaveBackend) APIs() []rpc.API {
 					Public:    true,
 				})
 		}
+		apis = append(apis,
+			rpc.API{
+				Namespace: "net",
+				Version:   "3.0",
+				Service:   NewNetApi(fmt.Sprintf("%d", s.clstrCfg.Quarkchain.NetworkID)),
+				Public:    true,
+			})
 	}
 	return apis
 }
