@@ -1077,7 +1077,7 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
 			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
-			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.Time()), nil
+			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.GetTime()), nil
 		}
 		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
 	}
@@ -1111,7 +1111,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
 			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
-			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.Time()), nil
+			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.GetTime()), nil
 		}
 		log.Debug("PoSW not satisfied", "coinbase", header.GetCoinbase().ToHex())
 	}
