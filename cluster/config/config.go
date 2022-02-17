@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -63,6 +63,14 @@ func NewPOWConfig() *POWConfig {
 	}
 }
 
+type IPOSWConfig interface {
+	GetEnabled() bool
+	GetEnableTimestamp() uint64
+	GetDiffDivider(blocktime uint64) uint64
+	GetWindowSize() uint64
+	GetTotalStakePerBlock() *big.Int
+}
+
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
 	EnableTimestamp    uint64   `json:"ENABLE_TIMESTAMP"`
@@ -80,15 +88,63 @@ func NewPOSWConfig() *POSWConfig {
 		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
 	}
 }
+func (c *POSWConfig) GetEnabled() bool                       { return c.Enabled }
+func (c *POSWConfig) GetEnableTimestamp() uint64             { return c.EnableTimestamp }
+func (c *POSWConfig) GetDiffDivider(blocktime uint64) uint64 { return c.DiffDivider }
+func (c *POSWConfig) GetWindowSize() uint64                  { return c.WindowSize }
+func (c *POSWConfig) GetTotalStakePerBlock() *big.Int        { return c.TotalStakePerBlock }
 
-func NewRootPOSWConfig() *POSWConfig {
-	return &POSWConfig{
-		Enabled:            false,
-		EnableTimestamp:    0,
-		DiffDivider:        1000,
-		WindowSize:         4320, //72 hours
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+type RootPOSWConfig struct {
+	Enabled               bool     `json:"ENABLED"`
+	EnableTimestamp       uint64   `json:"ENABLE_TIMESTAMP"`
+	DiffDivider           uint64   `json:"DIFF_DIVIDER"`
+	WindowSize            uint64   `json:"WINDOW_SIZE"`
+	TotalStakePerBlock    *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+	BoostTimestamp        uint64   `json:"BOOST_TIMESTAMP"`
+	BoostMultiplerPerStep uint64   `json:"BOOST_MULTIPLER_PER_STEP"`
+	BoostSteps            uint64   `json:"BOOST_STEPS"`
+	BoostStepInterval     uint64   `json:"BOOST_SETP_INTERVAL"`
+}
+
+func NewRootPOSWConfig() *RootPOSWConfig {
+	return &RootPOSWConfig{
+		Enabled:               false,
+		EnableTimestamp:       0,
+		DiffDivider:           1000,
+		WindowSize:            4320, //72 hours
+		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+		BoostTimestamp:        0,         // 0 = disable
+		BoostMultiplerPerStep: 10,        //
+		BoostSteps:            3,         // max 10 ^ 3 * DiffDivider times
+		BoostStepInterval:     86400 * 7, // one week
 	}
+}
+
+func (c *RootPOSWConfig) GetEnabled() bool                { return c.Enabled }
+func (c *RootPOSWConfig) GetEnableTimestamp() uint64      { return c.EnableTimestamp }
+func (c *RootPOSWConfig) GetWindowSize() uint64           { return c.WindowSize }
+func (c *RootPOSWConfig) GetTotalStakePerBlock() *big.Int { return c.TotalStakePerBlock }
+
+func (c *RootPOSWConfig) GetDiffDivider(blocktime uint64) uint64 {
+	diffDriver := c.DiffDivider
+	if c.BoostTimestamp > 0 && blocktime >= c.BoostTimestamp {
+		steps := (blocktime-c.BoostTimestamp)/c.BoostStepInterval + 1
+		if steps > c.BoostSteps {
+			steps = c.BoostSteps
+		}
+
+		diffDriver = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
+	}
+
+	return diffDriver
+}
+
+func pow(value, n uint64) uint64 {
+	r := uint64(1)
+	for i := uint64(0); i < n; i++ {
+		r *= value
+	}
+	return r
 }
 
 type SimpleNetwork struct {
@@ -141,7 +197,7 @@ type RootConfig struct {
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 	GRPCHost                       string          `json:"-"`
 	GRPCPort                       uint16          `json:"-"`
-	PoSWConfig                     *POSWConfig     `json:"POSW_CONFIG"`
+	RootPoSWConfig                 *RootPOSWConfig `json:"ROOT_POSW_CONFIG"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -157,7 +213,7 @@ func NewRootConfig() *RootConfig {
 		DifficultyAdjustmentFactor:     1024,
 		GRPCHost:                       "127.0.0.1",
 		GRPCPort:                       DefaultGrpcPort,
-		PoSWConfig:                     NewRootPOSWConfig(),
+		RootPoSWConfig:                 NewRootPOSWConfig(),
 	}
 }
 

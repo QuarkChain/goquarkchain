@@ -135,7 +135,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		isCheckDB:                false,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
-	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
+	bc.posw = posw.NewPoSW(bc, chainConfig.Root.RootPoSWConfig)
 	var err error
 	if err != nil {
 		return nil, err
@@ -1071,13 +1071,13 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
-		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.RootPoSWConfig.TotalStakePerBlock)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
 			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
-			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
+			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.Time()), nil
 		}
 		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
 	}
@@ -1111,7 +1111,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
 			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
-			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
+			return header.GetDifficulty(), bc.Config().Root.RootPoSWConfig.GetDiffDivider(header.Time()), nil
 		}
 		log.Debug("PoSW not satisfied", "coinbase", header.GetCoinbase().ToHex())
 	}
@@ -1123,7 +1123,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	return bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+	return bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.RootPoSWConfig.TotalStakePerBlock)
 }
 
 func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
@@ -1427,7 +1427,7 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 		return nil, nil
 	}
 	stakes, _ := bc.getSignedPoSWStakes(header)
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, *bc.chainConfig.Root.RootPoSWConfig.TotalStakePerBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,

@@ -750,12 +750,13 @@ func TestPoSWOnRootChain(t *testing.T) {
 	root := quarkChain.Root
 	root.DifficultyAdjustmentCutoffTime = 45
 	root.DifficultyAdjustmentFactor = 2048
-	poswConfig := quarkChain.Root.PoSWConfig
+	poswConfig := quarkChain.Root.RootPoSWConfig
 	poswConfig.Enabled = true
 	poswConfig.WindowSize = 2
 	poswConfig.TotalStakePerBlock = big.NewInt(10000000)
 	//should always pass pow check if posw is applied
 	poswConfig.DiffDivider = 1000000
+	poswConfig.BoostTimestamp = 0
 	balance := map[string]*big.Int{quarkChain.GenesisToken: big.NewInt(100000000)}
 	shardCfg := quarkChain.GetShardConfigByFullShardID(1)
 	shardCfg.Genesis.Alloc = map[account.Address]config.Allocation{
@@ -853,7 +854,7 @@ func TestGetWorkFromMaster(t *testing.T) {
 	)
 	cfglist := GetClusterConfig(1, chainSize, shardSize, chainSize, nil, defaultbootNode,
 		config.PoWDoubleSha256, true)
-	cfglist[0].Quarkchain.Root.PoSWConfig.Enabled = true
+	cfglist[0].Quarkchain.Root.RootPoSWConfig.Enabled = true
 	cfglist[0].Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, true)
