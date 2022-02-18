@@ -228,7 +228,7 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bo
 			return err
 		}
 	} else {
-		config := v.bc.config.PoswConfig
+		config := v.bc.shardConfig.PoswConfig
 		if config.Enabled {
 			adjustedDiff.Div(adjustedDiff, new(big.Int).SetUint64(config.GetDiffDivider(header.GetTime())))
 		}
