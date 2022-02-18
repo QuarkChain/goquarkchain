@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -64,31 +64,65 @@ func NewPOWConfig() *POWConfig {
 }
 
 type POSWConfig struct {
-	Enabled            bool     `json:"ENABLED"`
-	EnableTimestamp    uint64   `json:"ENABLE_TIMESTAMP"`
-	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
-	WindowSize         uint64   `json:"WINDOW_SIZE"`
-	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+	Enabled               bool     `json:"ENABLED"`
+	EnableTimestamp       uint64   `json:"ENABLE_TIMESTAMP"`
+	DiffDivider           uint64   `json:"DIFF_DIVIDER"`
+	WindowSize            uint64   `json:"WINDOW_SIZE"`
+	TotalStakePerBlock    *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+	BoostTimestamp        uint64   `json:"BOOST_TIMESTAMP"`
+	BoostMultiplerPerStep uint64   `json:"BOOST_MULTIPLER_PER_STEP"`
+	BoostSteps            uint64   `json:"BOOST_STEPS"`
+	BoostStepInterval     uint64   `json:"BOOST_SETP_INTERVAL"`
 }
 
 func NewPOSWConfig() *POSWConfig {
 	return &POSWConfig{
-		Enabled:            false,
-		EnableTimestamp:    0,
-		DiffDivider:        20,
-		WindowSize:         256,
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+		Enabled:               false,
+		EnableTimestamp:       0,
+		DiffDivider:           20,
+		WindowSize:            256,
+		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+		BoostTimestamp:        0,     // 0 = disable
+		BoostMultiplerPerStep: 2,     // increase 2 times every time
+		BoostSteps:            8,     // max 2 ^ 8 * DiffDivider times
+		BoostStepInterval:     43200, // 12 hours
 	}
 }
 
 func NewRootPOSWConfig() *POSWConfig {
 	return &POSWConfig{
-		Enabled:            false,
-		EnableTimestamp:    0,
-		DiffDivider:        1000,
-		WindowSize:         4320, //72 hours
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+		Enabled:               false,
+		EnableTimestamp:       0,
+		DiffDivider:           1000,
+		WindowSize:            4320, //72 hours
+		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+		BoostTimestamp:        0,         // 0 = disable
+		BoostMultiplerPerStep: 2,         // increase 2 times every time
+		BoostSteps:            8,         // max 2 ^ 8 * DiffDivider times
+		BoostStepInterval:     86400 * 2, // two days
 	}
+}
+
+func (c *POSWConfig) GetDiffDivider(blocktime uint64) uint64 {
+	diffDriver := c.DiffDivider
+	if c.BoostTimestamp > 0 && blocktime >= c.BoostTimestamp {
+		steps := (blocktime-c.BoostTimestamp)/c.BoostStepInterval + 1
+		if steps > c.BoostSteps {
+			steps = c.BoostSteps
+		}
+
+		diffDriver = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
+	}
+
+	return diffDriver
+}
+
+func pow(value, n uint64) uint64 {
+	r := uint64(1)
+	for i := uint64(0); i < n; i++ {
+		r *= value
+	}
+	return r
 }
 
 type SimpleNetwork struct {

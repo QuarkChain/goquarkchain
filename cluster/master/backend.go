@@ -688,7 +688,7 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		shard["poswEnabled"] = powConfig.Enabled
 		shard["poswMinStake"] = powConfig.TotalStakePerBlock
 		shard["poswWindowSize"] = powConfig.WindowSize
-		shard["difficultyDivider"] = powConfig.DiffDivider
+		shard["difficultyDivider"] = powConfig.GetDiffDivider(shardState.Timestamp)
 		shards = append(shards, shard)
 	}
 	sort.Slice(shards, func(i, j int) bool { return shards[i]["fullShardId"].(uint32) < shards[j]["fullShardId"].(uint32) }) //Right???
