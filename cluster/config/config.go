@@ -72,7 +72,7 @@ type POSWConfig struct {
 	BoostTimestamp        uint64   `json:"BOOST_TIMESTAMP"`
 	BoostMultiplerPerStep uint64   `json:"BOOST_MULTIPLER_PER_STEP"`
 	BoostSteps            uint64   `json:"BOOST_STEPS"`
-	BoostStepInterval     uint64   `json:"BOOST_SETP_INTERVAL"`
+	BoostStepInterval     uint64   `json:"BOOST_STEP_INTERVAL"`
 }
 
 func NewPOSWConfig() *POSWConfig {
