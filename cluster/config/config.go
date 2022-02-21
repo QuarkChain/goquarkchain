@@ -104,17 +104,17 @@ func NewRootPOSWConfig() *POSWConfig {
 }
 
 func (c *POSWConfig) GetDiffDivider(blocktime uint64) uint64 {
-	diffDriver := c.DiffDivider
+	diffDivider := c.DiffDivider
 	if c.BoostTimestamp > 0 && blocktime >= c.BoostTimestamp {
 		steps := (blocktime-c.BoostTimestamp)/c.BoostStepInterval + 1
 		if steps > c.BoostSteps {
 			steps = c.BoostSteps
 		}
 
-		diffDriver = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
+		diffDivider = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
 	}
 
-	return diffDriver
+	return diffDivider
 }
 
 func pow(value, n uint64) uint64 {
