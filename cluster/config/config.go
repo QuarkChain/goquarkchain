@@ -84,7 +84,7 @@ func NewPOSWConfig() *POSWConfig {
 		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
 		BoostTimestamp:        0,     // 0 = disable
 		BoostMultiplerPerStep: 2,     // increase 2 times every time
-		BoostSteps:            8,     // max 2 ^ 8 * DiffDivider times
+		BoostSteps:            10,    // max 2 ^ 10 * DiffDivider times
 		BoostStepInterval:     43200, // 12 hours
 	}
 }
@@ -98,7 +98,7 @@ func NewRootPOSWConfig() *POSWConfig {
 		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
 		BoostTimestamp:        0,         // 0 = disable
 		BoostMultiplerPerStep: 2,         // increase 2 times every time
-		BoostSteps:            8,         // max 2 ^ 8 * DiffDivider times
+		BoostSteps:            10,        // max 2 ^ 10 * DiffDivider times
 		BoostStepInterval:     86400 * 2, // two days
 	}
 }
