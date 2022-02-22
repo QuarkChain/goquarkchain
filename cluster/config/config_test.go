@@ -225,7 +225,7 @@ func TestGetRootPOSWConfigDiffDivider(t *testing.T) {
 		t.Fatalf("Boost has been enable and GetDiffDivider %d should equal to DiffDivider * BoostStepInterval %d",
 			config.GetDiffDivider(blockTime), config.DiffDivider*config.BoostMultiplerPerStep)
 	}
-	config.BoostTimestamp = blockTime - config.BoostStepInterval*config.BoostSteps - 1
+	config.BoostTimestamp = blockTime - config.BoostStepInterval*config.BoostSteps + 1
 	if config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps) != config.GetDiffDivider(blockTime) {
 		t.Fatalf("Boost has been enable and GetDiffDivider %d should equal to DiffDivider * pow (BoostStepInterval, config.BoostSteps) %d",
 			config.GetDiffDivider(blockTime), config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps))

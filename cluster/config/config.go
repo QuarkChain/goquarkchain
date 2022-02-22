@@ -72,7 +72,7 @@ type POSWConfig struct {
 	BoostTimestamp        uint64   `json:"BOOST_TIMESTAMP"`
 	BoostMultiplerPerStep uint64   `json:"BOOST_MULTIPLER_PER_STEP"`
 	BoostSteps            uint64   `json:"BOOST_STEPS"`
-	BoostStepInterval     uint64   `json:"BOOST_SETP_INTERVAL"`
+	BoostStepInterval     uint64   `json:"BOOST_STEP_INTERVAL"`
 }
 
 func NewPOSWConfig() *POSWConfig {
@@ -84,7 +84,7 @@ func NewPOSWConfig() *POSWConfig {
 		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
 		BoostTimestamp:        0,     // 0 = disable
 		BoostMultiplerPerStep: 2,     // increase 2 times every time
-		BoostSteps:            8,     // max 2 ^ 8 * DiffDivider times
+		BoostSteps:            10,    // max 2 ^ 10 * DiffDivider times
 		BoostStepInterval:     43200, // 12 hours
 	}
 }
@@ -98,23 +98,23 @@ func NewRootPOSWConfig() *POSWConfig {
 		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
 		BoostTimestamp:        0,         // 0 = disable
 		BoostMultiplerPerStep: 2,         // increase 2 times every time
-		BoostSteps:            8,         // max 2 ^ 8 * DiffDivider times
+		BoostSteps:            10,        // max 2 ^ 10 * DiffDivider times
 		BoostStepInterval:     86400 * 2, // two days
 	}
 }
 
 func (c *POSWConfig) GetDiffDivider(blocktime uint64) uint64 {
-	diffDriver := c.DiffDivider
+	diffDivider := c.DiffDivider
 	if c.BoostTimestamp > 0 && blocktime >= c.BoostTimestamp {
 		steps := (blocktime-c.BoostTimestamp)/c.BoostStepInterval + 1
 		if steps > c.BoostSteps {
 			steps = c.BoostSteps
 		}
 
-		diffDriver = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
+		diffDivider = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
 	}
 
-	return diffDriver
+	return diffDivider
 }
 
 func pow(value, n uint64) uint64 {
