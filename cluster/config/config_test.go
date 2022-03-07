@@ -221,18 +221,18 @@ func TestGetRootPOSWConfigDiffDivider(t *testing.T) {
 			config.DiffDivider, config.GetDiffDivider(blockTime))
 	}
 	config.BoostTimestamp = blockTime - 1
-	if config.DiffDivider*config.BoostMultiplerPerStep != config.GetDiffDivider(blockTime) {
+	if config.DiffDivider*config.BoostMultiplierPerStep != config.GetDiffDivider(blockTime) {
 		t.Fatalf("Boost has been enable and GetDiffDivider %d should equal to DiffDivider * BoostStepInterval %d",
-			config.GetDiffDivider(blockTime), config.DiffDivider*config.BoostMultiplerPerStep)
+			config.GetDiffDivider(blockTime), config.DiffDivider*config.BoostMultiplierPerStep)
 	}
 	config.BoostTimestamp = blockTime - config.BoostStepInterval*config.BoostSteps + 1
-	if config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps) != config.GetDiffDivider(blockTime) {
+	if config.DiffDivider*pow(config.BoostMultiplierPerStep, config.BoostSteps) != config.GetDiffDivider(blockTime) {
 		t.Fatalf("Boost has been enable and GetDiffDivider %d should equal to DiffDivider * pow (BoostStepInterval, config.BoostSteps) %d",
-			config.GetDiffDivider(blockTime), config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps))
+			config.GetDiffDivider(blockTime), config.DiffDivider*pow(config.BoostMultiplierPerStep, config.BoostSteps))
 	}
 	config.BoostTimestamp = blockTime - config.BoostStepInterval*(config.BoostSteps+1) - 1
-	if config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps) != config.GetDiffDivider(blockTime) {
+	if config.DiffDivider*pow(config.BoostMultiplierPerStep, config.BoostSteps) != config.GetDiffDivider(blockTime) {
 		t.Fatalf("Boost has been enable and GetDiffDivider %d should equal to DiffDivider * pow (BoostStepInterval, config.BoostSteps) %d",
-			config.GetDiffDivider(blockTime), config.DiffDivider*pow(config.BoostMultiplerPerStep, config.BoostSteps))
+			config.GetDiffDivider(blockTime), config.DiffDivider*pow(config.BoostMultiplierPerStep, config.BoostSteps))
 	}
 }

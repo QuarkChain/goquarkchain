@@ -64,42 +64,42 @@ func NewPOWConfig() *POWConfig {
 }
 
 type POSWConfig struct {
-	Enabled               bool     `json:"ENABLED"`
-	EnableTimestamp       uint64   `json:"ENABLE_TIMESTAMP"`
-	DiffDivider           uint64   `json:"DIFF_DIVIDER"`
-	WindowSize            uint64   `json:"WINDOW_SIZE"`
-	TotalStakePerBlock    *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
-	BoostTimestamp        uint64   `json:"BOOST_TIMESTAMP"`
-	BoostMultiplerPerStep uint64   `json:"BOOST_MULTIPLER_PER_STEP"`
-	BoostSteps            uint64   `json:"BOOST_STEPS"`
-	BoostStepInterval     uint64   `json:"BOOST_STEP_INTERVAL"`
+	Enabled                bool     `json:"ENABLED"`
+	EnableTimestamp        uint64   `json:"ENABLE_TIMESTAMP"`
+	DiffDivider            uint64   `json:"DIFF_DIVIDER"`
+	WindowSize             uint64   `json:"WINDOW_SIZE"`
+	TotalStakePerBlock     *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+	BoostTimestamp         uint64   `json:"BOOST_TIMESTAMP"`
+	BoostMultiplierPerStep uint64   `json:"BOOST_MULTIPLIER_PER_STEP"`
+	BoostSteps             uint64   `json:"BOOST_STEPS"`
+	BoostStepInterval      uint64   `json:"BOOST_STEP_INTERVAL"`
 }
 
 func NewPOSWConfig() *POSWConfig {
 	return &POSWConfig{
-		Enabled:               false,
-		EnableTimestamp:       0,
-		DiffDivider:           20,
-		WindowSize:            256,
-		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
-		BoostTimestamp:        0,     // 0 = disable
-		BoostMultiplerPerStep: 2,     // increase 2 times every time
-		BoostSteps:            10,    // max 2 ^ 10 * DiffDivider times
-		BoostStepInterval:     43200, // 12 hours
+		Enabled:                false,
+		EnableTimestamp:        0,
+		DiffDivider:            20,
+		WindowSize:             256,
+		TotalStakePerBlock:     new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+		BoostTimestamp:         0,     // 0 = disable
+		BoostMultiplierPerStep: 2,     // increase 2 times every time
+		BoostSteps:             10,    // max 2 ^ 10 * DiffDivider times
+		BoostStepInterval:      43200, // 12 hours
 	}
 }
 
 func NewRootPOSWConfig() *POSWConfig {
 	return &POSWConfig{
-		Enabled:               false,
-		EnableTimestamp:       0,
-		DiffDivider:           1000,
-		WindowSize:            4320, //72 hours
-		TotalStakePerBlock:    new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
-		BoostTimestamp:        0,         // 0 = disable
-		BoostMultiplerPerStep: 2,         // increase 2 times every time
-		BoostSteps:            10,        // max 2 ^ 10 * DiffDivider times
-		BoostStepInterval:     86400 * 2, // two days
+		Enabled:                false,
+		EnableTimestamp:        0,
+		DiffDivider:            1000,
+		WindowSize:             4320, // 72 hours
+		TotalStakePerBlock:     new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+		BoostTimestamp:         0,         // 0 = disable
+		BoostMultiplierPerStep: 2,         // increase 2 times every time
+		BoostSteps:             10,        // max 2 ^ 10 * DiffDivider times
+		BoostStepInterval:      86400 * 2, // two days
 	}
 }
 
@@ -111,7 +111,7 @@ func (c *POSWConfig) GetDiffDivider(blocktime uint64) uint64 {
 			steps = c.BoostSteps
 		}
 
-		diffDivider = c.DiffDivider * pow(c.BoostMultiplerPerStep, steps)
+		diffDivider = c.DiffDivider * pow(c.BoostMultiplierPerStep, steps)
 	}
 
 	return diffDivider
