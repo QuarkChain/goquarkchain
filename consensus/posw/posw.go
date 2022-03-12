@@ -62,7 +62,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int, stakePerBlo
 	}
 	log.Debug("PoSWDiffAdjust", "blockCnt", blockCnt, "blockThreshold", blockThreshold, "coinbase", header.GetCoinbase().ToHex())
 	if blockCnt < blockThreshold {
-		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
+		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.GetDiffDivider(header.GetTime()))))
 	}
 	return diff, nil
 }
@@ -170,7 +170,7 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address accoun
 	}
 	diff := header.GetDifficulty()
 	if blockCnt < blockThreshold {
-		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
+		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.GetDiffDivider(header.GetTime()))))
 	}
 	effectiveDiff = diff
 	mineable = blockThreshold

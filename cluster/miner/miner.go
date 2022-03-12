@@ -63,6 +63,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 	go miner.resultLoop()
 	return miner
 }
+
 func (m *Miner) getTip() uint64 {
 	return m.api.GetTip()
 }
@@ -132,7 +133,7 @@ func (m *Miner) sealLoop() {
 
 	for {
 		select {
-		case work := <-m.workCh: //to discuss:need this?
+		case work := <-m.workCh: // to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
 			m.mu.Lock()
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {

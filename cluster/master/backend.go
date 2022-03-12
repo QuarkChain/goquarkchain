@@ -623,7 +623,7 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 	defer s.lock.RUnlock()
 	data, ok := s.branchToShardStats[fullShardId]
 	if !ok {
-		return 0, errors.New("no such fullShardId") //TODO 0?
+		return 0, errors.New("no such fullShardId") // TODO 0?
 	}
 	return data.Height, nil
 }
@@ -688,10 +688,10 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		shard["poswEnabled"] = powConfig.Enabled
 		shard["poswMinStake"] = powConfig.TotalStakePerBlock
 		shard["poswWindowSize"] = powConfig.WindowSize
-		shard["difficultyDivider"] = powConfig.DiffDivider
+		shard["difficultyDivider"] = powConfig.GetDiffDivider(shardState.Timestamp)
 		shards = append(shards, shard)
 	}
-	sort.Slice(shards, func(i, j int) bool { return shards[i]["fullShardId"].(uint32) < shards[j]["fullShardId"].(uint32) }) //Right???
+	sort.Slice(shards, func(i, j int) bool { return shards[i]["fullShardId"].(uint32) < shards[j]["fullShardId"].(uint32) }) // Right???
 	var (
 		sumTxCount60s         = uint32(0)
 		sumBlockCount60       = uint32(0)
@@ -712,7 +712,7 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		prev := s.rootBlockChain.GetBlock(tip.ParentHash())
 		rootLastBlockTime = tip.Time() - prev.Time()
 	}
-	//anything else easy handle?
+	// anything else easy handle?
 	txCountHistory := make([]map[string]interface{}, 0)
 	dequeSize := s.txCountHistory.Size()
 	for index := 0; index < dequeSize; index++ {
@@ -762,6 +762,7 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		"root_block_interval":  s.artificialTxConfig.TargetRootBlockTime,
 		"cpus":                 cc,
 		"txCountHistory":       txCountHistory,
+		"difficultyDivider":    s.clusterConfig.Quarkchain.Root.PoSWConfig.GetDiffDivider(s.rootBlockChain.CurrentBlock().Time()),
 	}, nil
 }
 
