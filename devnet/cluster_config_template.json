@@ -408,7 +408,7 @@
   "P2P": {
     "NEW_MODULE": true,
     "MAX_PEERS": 30,
-    "BOOT_NODES": "enode://e762242fb6bbae2f031b777fe2e9878ed267a332c71af101761c1560288a4b23024f84567425d1bb48fbd9d7b3fb344d23720a9f390bb112cef1255670c953f1@50.112.62.65:38291",
+    "BOOT_NODES": "enode://1b7830e74241636f93b877b8befbf1dea7398b9ca43013bc75b6c64b0dfdca0dcd3d3da3db533fa17c1d6a862e9ed8ce3dc1bb42fafde4a9aa4937ac7a0f2cc1@50.112.62.65:38291",
     "PRIV_KEY": "",
     "UPNP": true
   },
