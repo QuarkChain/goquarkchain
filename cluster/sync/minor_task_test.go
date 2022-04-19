@@ -196,14 +196,14 @@ func TestMinorChainTask(t *testing.T) {
 	// retMBlocks, retMHeaders = makeRootChains(retMBlocks[len(retMBlocks)-1], 1000, true)
 	retMBlocks, retMHeaders = makeMinorChains(retMBlocks[len(retMBlocks)-1], 1000, db, true)
 	for _, rh := range retMHeaders[1:] {
-		assert.False(t, mbc.HasBlock(rh.Hash()))
+		assert.False(t, bc.HasBlock(rh.Hash()))
 	}
 
 	mTask.header = retMHeaders[len(retMHeaders)-1]
 	p.retMHeaders, p.retMBlocks = append(p.retMHeaders[20:], retMHeaders...), append(p.retMBlocks[20:], retMBlocks...)
 	assert.NoError(t, mt.Run(bc))
 	for _, rh := range retMHeaders {
-		assert.True(t, mbc.HasBlock(rh.Hash()))
+		assert.True(t, bc.HasBlock(rh.Hash()))
 	}
 
 	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
