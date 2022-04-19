@@ -107,7 +107,10 @@ func NewMinorChainTask(
 				return true
 			}
 
-			bc := b.(*core.MinorBlockChain)
+			bc, ok := b.(*core.MinorBlockChain)
+			if !ok {
+				return false
+			}
 			// Do not download if the prev root block is not synced
 			rootBlockHeader := bc.GetRootBlockByHash(mTask.header.PrevRootBlockHash)
 			if rootBlockHeader == nil {

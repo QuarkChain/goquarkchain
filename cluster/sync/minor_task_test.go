@@ -100,19 +100,19 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 		blocks = append(blocks, mb)
 	}
 
-	blockchain, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
+	mbc, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
 	}
-	_, err = blockchain.InitGenesisState(rootBlock)
+	_, err = mbc.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
-	if _, err := blockchain.InsertChain(blocks, false); err != nil {
+	if _, err := mbc.InsertChain(blocks, false); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
 
-	return &mockblockchain{mbc: blockchain}, db
+	return &mockblockchain{mbc: mbc}, db
 }
 
 func TestMinorChainTask(t *testing.T) {
@@ -128,27 +128,27 @@ func TestMinorChainTask(t *testing.T) {
 	// No error if already have the target block.
 	var mt = NewMinorChainTask(p, bc.CurrentHeader().(*types.MinorBlockHeader))
 	mTask := mt.(*minorChainTask)
-	assert.NoError(t, mt.Run(mbc))
+	assert.NoError(t, mt.Run(bc))
 
 	// Happy path.
 	p.retMBlocks, p.retMHeaders = retMBlocks, retMHeaders
 	mTask.header = retMHeaders[4]
 	// Confirm 5 more blocks are successfully added to existing 5-block chain.
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), uint64(10))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(10))
 
 	// Rollback and test unhappy path.
 	mbc.SetHead(5)
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), retMHeaders[5].NumberU64())
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), retMHeaders[5].NumberU64())
 
 	// Get errors when downloading headers.
 	mTask.header = retMHeaders[11]
 	p.downloadHeaderError = errors.New("download error")
-	assert.Error(t, mt.Run(mbc))
+	assert.Error(t, mt.Run(bc))
 
 	// Downloading headers succeeds, but block validation failed.
 	p.downloadHeaderError = nil
 	v.err = errors.New("validate error")
-	assert.Error(t, mt.Run(mbc))
+	assert.Error(t, mt.Run(bc))
 
 	// Block validation succeeds, but block header list not correct.
 	v.err = nil
@@ -157,24 +157,24 @@ func TestMinorChainTask(t *testing.T) {
 		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
 	})
 	p.retMHeaders = wrongHeaders
-	assert.Error(t, mt.Run(mbc))
+	assert.Error(t, mt.Run(bc))
 
 	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
 	p.retMHeaders = retMHeaders
 	p.downloadBlockError = errors.New("download error")
-	assert.Error(t, mt.Run(mbc))
+	assert.Error(t, mt.Run(bc))
 
 	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
 	p.downloadBlockError = nil
 	missing := p.retMBlocks[len(p.retMBlocks)-4:]
 	p.retMBlocks = p.retMBlocks[:len(p.retMBlocks)-4]
 	mTask.header = retMHeaders[len(retMHeaders)-1]
-	assert.Error(t, mt.Run(mbc))
+	assert.Error(t, mt.Run(bc))
 
 	// Add back that missing block. Happy again.
 	p.retMBlocks = append(p.retMBlocks, missing...)
-	assert.NoError(t, mt.Run(mbc))
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), uint64(20))
+	assert.NoError(t, mt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20))
 
 	// add maxSyncStaleness minor blocks
 	mTask.maxSyncStaleness = 1000
@@ -184,13 +184,13 @@ func TestMinorChainTask(t *testing.T) {
 
 	// just sync 10 minor blocks.
 	mTask.header = retMHeaders[10]
-	assert.NoError(t, mt.Run(mbc))
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), uint64(20+10))
+	assert.NoError(t, mt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20+10))
 
 	// sync the last all 990 minor blocks.
 	mTask.header = retMHeaders[len(retMHeaders)-1]
-	assert.NoError(t, mt.Run(mbc))
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), uint64(20+1000))
+	assert.NoError(t, mt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20+1000))
 
 	// Sync older forks. Starting from block 6, up to maxSyncStaleness.
 	// retMBlocks, retMHeaders = makeRootChains(retMBlocks[len(retMBlocks)-1], 1000, true)
@@ -201,12 +201,12 @@ func TestMinorChainTask(t *testing.T) {
 
 	mTask.header = retMHeaders[len(retMHeaders)-1]
 	p.retMHeaders, p.retMBlocks = append(p.retMHeaders[20:], retMHeaders...), append(p.retMBlocks[20:], retMBlocks...)
-	assert.NoError(t, mt.Run(mbc))
+	assert.NoError(t, mt.Run(bc))
 	for _, rh := range retMHeaders {
 		assert.True(t, mbc.HasBlock(rh.Hash()))
 	}
 
-	assert.Equal(t, mbc.CurrentHeader().NumberU64(), uint64(2000+20))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
 }
 
 /*
