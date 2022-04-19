@@ -108,12 +108,17 @@ func NewMinorChainTask(
 			}
 
 			bc := b.(*core.MinorBlockChain)
+			// Do not download if the prev root block is not synced
 			rootBlockHeader := bc.GetRootBlockByHash(mTask.header.PrevRootBlockHash)
 			if rootBlockHeader == nil {
 				return true
 			}
+
 			// Do not download if the new header's confirmed root is lower then current root tip last header's confirmed root
 			// This means the minor block's root is a fork, which will be handled by master sync
+			if bc.GetMinorTip() == nil {
+				return false
+			}
 			confirmedRootHeader := bc.GetRootBlockByHash(bc.GetMinorTip().PrevRootBlockHash())
 			if confirmedRootHeader != nil && confirmedRootHeader.NumberU64() > rootBlockHeader.NumberU64() {
 				return true
