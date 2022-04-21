@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -103,6 +104,26 @@ func NewMinorChainTask(
 		},
 		needSkip: func(b blockchain) bool {
 			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() || b.HasBlock(mTask.header.Hash()) {
+				return true
+			}
+
+			bc, ok := b.(*core.MinorBlockChain)
+			if !ok {
+				return false
+			}
+			// Do not download if the prev root block is not synced
+			rootBlockHeader := bc.GetRootBlockByHash(mTask.header.PrevRootBlockHash)
+			if rootBlockHeader == nil {
+				return true
+			}
+
+			// Do not download if the new header's confirmed root is lower then current root tip last header's confirmed root
+			// This means the minor block's root is a fork, which will be handled by master sync
+			if bc.GetMinorTip() == nil {
+				return false
+			}
+			confirmedRootHeader := bc.GetRootBlockByHash(bc.GetMinorTip().PrevRootBlockHash())
+			if confirmedRootHeader != nil && confirmedRootHeader.NumberU64() > rootBlockHeader.NumberU64() {
 				return true
 			}
 			return false

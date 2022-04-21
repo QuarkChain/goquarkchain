@@ -100,19 +100,19 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 		blocks = append(blocks, mb)
 	}
 
-	blockchain, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
+	mbc, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
 	}
-	_, err = blockchain.InitGenesisState(rootBlock)
+	_, err = mbc.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
-	if _, err := blockchain.InsertChain(blocks, false); err != nil {
+	if _, err := mbc.InsertChain(blocks, false); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
 
-	return &mockblockchain{mbc: blockchain}, db
+	return &mockblockchain{mbc: mbc}, db
 }
 
 func TestMinorChainTask(t *testing.T) {
