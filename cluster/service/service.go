@@ -49,11 +49,7 @@ func (ctx *ServiceContext) OpenDatabase(name string, clean bool, isReadOnly bool
 	if ctx.config == nil || ctx.config.DataDir == "" {
 		return NewQkcMemoryDB(isReadOnly), nil
 	}
-	db, err := qkcdb.NewDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
+	return qkcdb.NewDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
 }
 
 // ResolvePath resolves a user path into the data directory if that was relative
