@@ -102,7 +102,7 @@ func BenchmarkQKCHashX(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		seed := make([]byte, 40)
-		copy(seed, []byte("HELLOW"))
+		copy(seed, []byte("HELLO"))
 		_, _, err = qkcHashX(seed, cache, false)
 	}
 	benchErr = err
@@ -114,7 +114,7 @@ func BenchmarkQKCHashX_UseX(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		seed := make([]byte, 40)
-		copy(seed, []byte("HELLOW"))
+		copy(seed, []byte("HELLO"))
 		_, _, err = qkcHashX(seed, cache, true)
 	}
 	benchErr = err
@@ -125,7 +125,7 @@ func TestQKCHashXResult(t *testing.T) {
 	result := []byte{45, 160, 166, 176, 163, 16, 103, 190, 69, 209, 193, 89, 157, 138, 89, 214, 43, 240, 248, 189, 88, 12, 148, 15, 176, 31, 157, 136, 126, 110, 98, 1}
 	cache := generateCache(cacheEntryCnt, nil)
 	seed := make([]byte, 40)
-	copy(seed, []byte("HELLOW"))
+	copy(seed, []byte("HELLO"))
 	digestX, resultX, err := qkcHashX(seed, cache, false)
 	assert.NoError(t, err)
 	assert.Equal(t, digest, digestX)
@@ -137,7 +137,7 @@ func TestQKCHashXResult_UseX(t *testing.T) {
 	result := []byte{227, 252, 40, 42, 175, 149, 150, 225, 16, 184, 64, 85, 21, 230, 53, 127, 165, 81, 200, 158, 57, 125, 34, 242, 21, 29, 114, 7, 38, 40, 215, 202}
 	cache := generateCache(cacheEntryCnt, nil)
 	seed := make([]byte, 40)
-	copy(seed, []byte("HELLOW"))
+	copy(seed, []byte("HELLO"))
 	digestX, resultX, err := qkcHashX(seed, cache, true)
 	assert.NoError(t, err)
 	assert.Equal(t, digest, digestX)
