@@ -1,15 +1,20 @@
 name: go-test
+
 on: [push]
+
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
     container: quarkchaindocker/goquarkchain:mainnet1.6.1
 
     steps:
+      - name: upgrade
+        run: apt update && apt upgrade -y
+
       - uses: actions/checkout@v4
+
       - name: daily-test
-        run: |
-          apt update && apt upgrade -y
+        run: |          
           cd consensus/qkchash/native && make && cd -
           go vet ./...
           go test -timeout 1m ./... -gcflags=-l
