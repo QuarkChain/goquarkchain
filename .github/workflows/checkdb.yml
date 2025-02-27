@@ -1,11 +1,10 @@
 name: checkdb
-on:
-  schedule:
-    - cron: '0 13 * * *'
+on: [push]
+
 jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
-    container: quarkchaindocker/goquarkchain:mainnet1.6.1
+    container: quarkchaindocker/goquarkchain:test1.6.1
     timeout-minutes: 2880
 
     steps:
