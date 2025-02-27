@@ -4,14 +4,14 @@ on: [push]
 
 jobs:
   build_and_test:
-    runs-on: ubuntu-latest
-    container: quarkchaindocker/goquarkchain:mainnet1.6.1
+    runs-on: self-hosted
+    container: quarkchaindocker/goquarkchain:mainnet1.6.2
 
     steps:
       - name: upgrade
         run: apt update && apt upgrade -y
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: daily-test
         run: |          
