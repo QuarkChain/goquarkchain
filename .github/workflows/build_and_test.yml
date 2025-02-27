@@ -4,8 +4,8 @@ on: [push]
 
 jobs:
   build_and_test:
-    runs-on: self-hosted
-    container: quarkchaindocker/goquarkchain:mainnet1.6.2
+    runs-on: ubuntu-latest
+    container: quarkchaindocker/goquarkchain:test1.6.1
 
     steps:
       - name: upgrade
