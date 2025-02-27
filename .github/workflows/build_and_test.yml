@@ -5,14 +5,10 @@ on: [push]
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
-    container: quarkchaindocker/goquarkchain:mainnet1.6.1
+    container: quarkchaindocker/goquarkchain:test1.6.1
 
     steps:
-      - name: upgrade
-        run: apt update && apt upgrade -y
-
-      - uses: actions/checkout@v3
-
+      - uses: actions/checkout@v4
       - name: daily-test
         run: |          
           cd consensus/qkchash/native && make && cd -
