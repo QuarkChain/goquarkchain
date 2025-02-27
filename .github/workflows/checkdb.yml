@@ -5,11 +5,11 @@ on:
 jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
-    container: quarkchaindocker/goquarkchain
+    container: quarkchaindocker/goquarkchain:test1.6.1
     timeout-minutes: 2880
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies and Build
         run: |
