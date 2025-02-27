@@ -109,7 +109,7 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 				for _, tx := range txs {
 					mBlock, idx := api.getShardFilter().GetTransactionByHash(tx.Hash())
 					if mBlock == nil {
-						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", "emtpy block")
+						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", "empty block")
 						continue
 					}
 					data, err := encoder.TxEncoder(mBlock, int(idx))
