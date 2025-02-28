@@ -183,10 +183,7 @@ func (s *QKCMasterBackend) CheckDB() {
 	// Start with root db
 	rb := s.rootBlockChain.CurrentBlock()
 	fromHeight := s.clusterConfig.CheckDBRBlockFrom
-	toHeight := uint64(s.clusterConfig.CheckDBRBlockTo)
-	if toHeight < 1 {
-		toHeight = 1
-	}
+
 	if fromHeight >= 0 && uint64(fromHeight) < rb.NumberU64() {
 		rb = s.rootBlockChain.GetBlockByNumber(uint64(fromHeight)).(*types.RootBlock)
 		log.Info("Starting from root block ", "height", fromHeight)
@@ -195,6 +192,17 @@ func (s *QKCMasterBackend) CheckDB() {
 		log.Error("Root block mismatches local root block by hash", "height", rb.NumberU64())
 		return
 	}
+
+	toHeight := uint64(1)
+	if s.clusterConfig.CheckDBRBlockTo > 0 {
+		toHeight = uint64(s.clusterConfig.CheckDBRBlockTo)
+	} else if s.clusterConfig.CheckDBRBlockTo < 0 {
+		reduceCount := uint64(-s.clusterConfig.CheckDBRBlockTo)
+		if reduceCount < rb.NumberU64() {
+			toHeight = rb.NumberU64() - reduceCount
+		}
+	}
+	log.Info("End root block ", "height", toHeight)
 
 	size := s.clusterConfig.CheckDBRBlockBatch
 	count := 0
