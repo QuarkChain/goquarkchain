@@ -68,7 +68,7 @@ func BalancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	for k, v := range bMap {
 		tokenStr, err := common.TokenIdDecode(k)
 		if err != nil {
-			panic(err) //TODO ??
+			panic(err) // TODO ??
 		}
 		balanceList = append(balanceList, map[string]interface{}{
 			"tokenId":  (hexutil.Uint64)(k),
@@ -439,7 +439,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"blockHeight":       hexutil.Uint64(header.Number),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Time()),
