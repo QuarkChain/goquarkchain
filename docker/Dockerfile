@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 LABEL maintainer="goquarkchain"
 
 #prerequisite
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 
 # install rocksdb
 WORKDIR /code
-RUN git clone -b v6.20.3 --single-branch https://github.com/facebook/rocksdb.git
+RUN git clone -b v8.11.4 --single-branch https://github.com/facebook/rocksdb.git
 WORKDIR /code/rocksdb
 RUN make shared_lib
 RUN make install-shared
