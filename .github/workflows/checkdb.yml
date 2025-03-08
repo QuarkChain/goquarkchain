@@ -46,6 +46,6 @@ jobs:
                 echo "Sunday:checkdb until 0 "
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           else
-                echo "Not Sunday:checkdb 10w blocks"
+                echo "Not Sunday:checkdb 100k blocks"
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=-100000
           fi
