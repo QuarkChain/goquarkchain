@@ -14,11 +14,15 @@ jobs:
       - name: Install Dependencies and Build
         run: |
           echo "Install Dependencies and Build"
+          apt update && apt upgrade -y && apt install sshpass
+
       - name: Download DB snapshot
         run: |
           cd cmd/cluster
           mkdir  qkc-data
-          curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+          sshpass -p ${{ secrets.SBOX_SA_PASSWORD }} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null u446960-sub2@u446960-sub2.your-storagebox.de:VERSION-GO VERSION-GO
+          fileName=`cat VERSION-GO`
+          sshpass -p ${{ secrets.SBOX_SA_PASSWORD }} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null u446960-sub2@u446960-sub2.your-storagebox.de:$fileName data.tar.gz
           tar xvfz data.tar.gz
           rm data.tar.gz && mv mainnet qkc-data
 
@@ -42,6 +46,6 @@ jobs:
                 echo "Sunday:checkdb until 0 "
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           else
-                echo "Not Sunday:checkdb until 40w"
-                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=600000
+                echo "Not Sunday:checkdb 100k blocks"
+                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=-100000
           fi
