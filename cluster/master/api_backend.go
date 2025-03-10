@@ -182,7 +182,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 }
 
 func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
-	// not support earlist and pending
+	// not support earliest and pending
 	slaveConn := s.GetOneSlaveConnById(args.FullShardId)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn

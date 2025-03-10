@@ -56,13 +56,13 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 }
 
 func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, blockInterval uint64) *PowSimulate {
-	simualte := &PowSimulate{blockInterval: blockInterval}
+	simulate := &PowSimulate{blockInterval: blockInterval}
 	spec := consensus.MiningSpec{
 		Name:       config.PoWSimulate,
-		HashAlgo:   simualte.hashAlgo,
+		HashAlgo:   simulate.hashAlgo,
 		VerifySeal: verifySeal,
 	}
 
-	simualte.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
-	return simualte
+	simulate.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
+	return simulate
 }
