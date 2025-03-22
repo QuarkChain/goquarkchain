@@ -408,6 +408,7 @@ func (c *CommonEngine) RefreshWork(tip uint64) {
 		c.currentWorks.refresh(tip)
 	}
 }
+
 func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	if !c.isRemote {
 		return false
