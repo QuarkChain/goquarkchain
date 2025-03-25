@@ -293,7 +293,7 @@ func (b *MinorBlock) Transaction(hash common.Hash) *Transaction {
 
 func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
-//header properties
+// header properties
 func (b *MinorBlock) GetXShardGasLimit() *big.Int {
 	return new(big.Int).Set(b.meta.XShardGasLimit.Value)
 }
@@ -313,7 +313,7 @@ func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
 func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
 func (b *MinorBlock) CoinbaseAmount() *TokenBalances { return b.header.GetCoinbaseAmount() }
 
-//meta properties
+// meta properties
 func (b *MinorBlock) Root() common.Hash        { return b.meta.Root }
 func (b *MinorBlock) TxHash() common.Hash      { return b.meta.TxHash }
 func (b *MinorBlock) ReceiptHash() common.Hash { return b.meta.ReceiptHash }
