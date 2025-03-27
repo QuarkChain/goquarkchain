@@ -2,14 +2,15 @@ package p2p
 
 import (
 	"bytes"
+	"math/big"
+	"reflect"
+	"strconv"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"reflect"
-	"strconv"
 )
 
 type P2PCommandOp byte

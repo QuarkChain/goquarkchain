@@ -4,6 +4,11 @@
 package test
 
 import (
+	"math/big"
+	"runtime"
+	"testing"
+	"time"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -12,10 +17,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"runtime"
-	"testing"
-	"time"
 )
 
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {

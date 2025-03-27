@@ -4,13 +4,13 @@ package core
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/common"
 	"math/big"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"

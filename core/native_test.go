@@ -5,11 +5,10 @@ import (
 	"math/big"
 	"os"
 	"testing"
-
 	"bou.ke/monkey"
+	
 	"github.com/QuarkChain/goquarkchain/params"
 	ethParams "github.com/ethereum/go-ethereum/params"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"

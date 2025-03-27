@@ -9,10 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	qkconsensus "github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
 // This test checks that cache lru logic doesn't crash under load.

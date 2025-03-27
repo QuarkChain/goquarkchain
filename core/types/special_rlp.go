@@ -3,8 +3,9 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/rlp"
 	"io"
+
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var (

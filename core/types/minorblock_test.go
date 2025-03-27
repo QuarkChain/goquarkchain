@@ -2,11 +2,11 @@ package types
 
 import (
 	"encoding/hex"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 	"reflect"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )

@@ -5,6 +5,7 @@ package rawdb
 import (
 	"encoding/binary"
 	"encoding/json"
+	
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"

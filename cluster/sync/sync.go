@@ -1,13 +1,14 @@
 package sync
 
 import (
+	"math/big"
+	"sync"
+	
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"sync"
 )
 
 // A lightweight wrapper over shard chain or root chain.
