@@ -19,7 +19,6 @@ package p2p
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"math/rand"
 	"net"
 	"reflect"
@@ -27,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"

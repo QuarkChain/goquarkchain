@@ -2,10 +2,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/master"
-	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"net"
 	"time"
+	
+	"github.com/QuarkChain/goquarkchain/cluster/master"
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
 )
 
 type Clusterlist []*clusterNode

@@ -224,8 +224,8 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("tx should succeed but get: %v", err)
 	}
 }
-func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 
+func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	if err != nil {
 		t.Fatalf("error create id %v", id1)

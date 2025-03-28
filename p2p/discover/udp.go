@@ -22,15 +22,16 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"net"
+	"sync"
+	"time"
+	
 	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/rlp"
-	"net"
-	"sync"
-	"time"
 )
 
 // Errors

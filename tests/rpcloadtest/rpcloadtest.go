@@ -4,12 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	clt "github.com/QuarkChain/goqkcclient/client"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"os"
 	"os/signal"
@@ -17,6 +11,13 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	
+	clt "github.com/QuarkChain/goqkcclient/client"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (

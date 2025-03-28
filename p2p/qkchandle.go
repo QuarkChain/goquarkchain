@@ -9,13 +9,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/snappy"
 	"io"
 	"io/ioutil"
 	"math/big"
 	"net"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/snappy"
 )
 
 var (

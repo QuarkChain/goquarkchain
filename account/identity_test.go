@@ -6,10 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"reflect"
 	"testing"
+	
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type IdentityTestStruct struct {

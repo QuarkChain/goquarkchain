@@ -4,10 +4,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVerifySeal(t *testing.T) {

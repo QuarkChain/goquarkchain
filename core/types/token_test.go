@@ -6,14 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	qCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/ethereum/go-ethereum/trie"
-
-	"github.com/ethereum/go-ethereum/ethdb"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewTokenBalanceMap(t *testing.T) {

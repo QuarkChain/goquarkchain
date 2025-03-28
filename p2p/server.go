@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"net"
 	"sort"
 	"sync"
@@ -30,6 +29,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/p2p/discover"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/crypto"

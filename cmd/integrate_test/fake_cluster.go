@@ -2,6 +2,11 @@ package test
 
 import (
 	"fmt"
+	"math/rand"
+	"runtime"
+	"runtime/debug"
+	"time"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
@@ -13,10 +18,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"math/rand"
-	"runtime"
-	"runtime/debug"
-	"time"
 )
 
 var (

@@ -19,11 +19,11 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -104,8 +104,14 @@ func TestHeaderVerification(t *testing.T) {
 }
 
 // Tests that concurrent header verification works, for both good and bad blocks.
-func TestMinorHeaderConcurrentVerification2(t *testing.T) { testMinorHeaderConcurrentVerification(t, 2) }
-func TestMinorHeaderConcurrentVerification8(t *testing.T) { testMinorHeaderConcurrentVerification(t, 8) }
+func TestMinorHeaderConcurrentVerification2(t *testing.T) {
+	testMinorHeaderConcurrentVerification(t, 2)
+}
+
+func TestMinorHeaderConcurrentVerification8(t *testing.T) {
+	testMinorHeaderConcurrentVerification(t, 8)
+}
+
 func TestMinorHeaderConcurrentVerification32(t *testing.T) {
 	testMinorHeaderConcurrentVerification(t, 32)
 }

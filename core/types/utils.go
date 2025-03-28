@@ -1,12 +1,13 @@
 package types
 
 import (
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"hash"
 	"reflect"
 	"sync"
+	
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
 type writeCounter common.StorageSize

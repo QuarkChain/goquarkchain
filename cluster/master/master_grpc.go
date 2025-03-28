@@ -2,9 +2,10 @@ package master
 
 import (
 	"context"
+	"sync"
+	
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"sync"
 )
 
 type MasterServerSideOp struct {

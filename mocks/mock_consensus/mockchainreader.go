@@ -5,12 +5,13 @@
 package mock_consensus
 
 import (
+	big "math/big"
+	reflect "reflect"
+	
 	config "github.com/QuarkChain/goquarkchain/cluster/config"
 	types "github.com/QuarkChain/goquarkchain/core/types"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
-	big "math/big"
-	reflect "reflect"
 )
 
 // MockChainReader is a mock of ChainReader interface

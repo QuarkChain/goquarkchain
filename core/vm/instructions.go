@@ -23,7 +23,6 @@ import (
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
-
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
