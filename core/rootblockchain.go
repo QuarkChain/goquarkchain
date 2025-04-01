@@ -47,6 +47,12 @@ const (
 	validatedMinorBlockHashes = 128
 )
 
+const (
+	NonStatTy WriteStatus = iota
+	CanonStatTy
+	SideStatTy
+)
+
 // CacheConfig contains the configuration values for the trie caching/pruning
 // that's resident in a blockchain.
 type CacheConfig struct {
@@ -54,11 +60,6 @@ type CacheConfig struct {
 	TrieCleanLimit int           // Memory allowance (MB) to use for caching trie nodes in memory
 	TrieDirtyLimit int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
 	TrieTimeLimit  time.Duration // Time limit after which to flush the current in-memory trie to disk
-}
-
-type RootEpochDataCache struct {
-	CoinbaseAmount *big.Int
-	StakePreBlock  *big.Int
 }
 
 // RootBlockChain represents the canonical chain given a database with a genesis
@@ -99,9 +100,9 @@ type RootBlockChain struct {
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
 
-	blockCache     *lru.Cache // Cache for the most recent entire blocks
-	futureBlocks   *lru.Cache // future blocks are blocks added for later processing
-	epochDataCache map[uint64]*RootEpochDataCache
+	blockCache          *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks        *lru.Cache // future blocks are blocks added for later processing
+	coinbaseAmountCache map[uint64]*big.Int
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -119,6 +120,29 @@ type RootBlockChain struct {
 	rootChainStakesFunc func(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
 }
 
+// WriteStatus status of write
+type WriteStatus byte
+
+func absUint64(a, b uint64) uint64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
+func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
+	pub, err := crypto.Ecrecover(sighash, sig[:])
+	if err != nil {
+		return nil, err
+	}
+	if len(pub) == 0 || pub[0] != 4 {
+		return nil, errors.New("invalid public key")
+	}
+	var addr account.Recipient
+	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	return &addr, nil
+}
+
 // NewBlockChain returns a fully initialized block chain using information
 // available in the database. It initializes the default Ethereum Validator and
 // Processor.
@@ -133,7 +157,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		triegc:                   prque.New(nil),
 		quit:                     make(chan struct{}),
 		blockCache:               blockCache,
-		epochDataCache:           make(map[uint64]*RootEpochDataCache),
+		coinbaseAmountCache:      make(map[uint64]*big.Int),
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
@@ -407,15 +431,6 @@ func (bc *RootBlockChain) procFutureBlocks() {
 	}
 }
 
-// WriteStatus status of write
-type WriteStatus byte
-
-const (
-	NonStatTy WriteStatus = iota
-	CanonStatTy
-	SideStatTy
-)
-
 // Rollback is designed to remove a chain of links from the database that aren't
 // certain enough to be valid.
 func (bc *RootBlockChain) Rollback(chain []common.Hash) {
@@ -546,13 +561,6 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 
 	bc.PostChainEvents(events)
 	return n, err
-}
-
-func absUint64(a, b uint64) uint64 {
-	if a > b {
-		return a - b
-	}
-	return b - a
 }
 
 // insertChain is the internal implementation of insertChain, which assumes that
@@ -1076,8 +1084,8 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
-		totalStakePerBlock := bc.GetTotalStakePerBlock(header.NumberU64(), header.GetTime())
-		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, totalStakePerBlock)
+		stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, stakePerBlock)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
@@ -1133,8 +1141,8 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	totalStakePerBlock := bc.GetTotalStakePerBlock(header.NumberU64(), header.GetTime())
-	return bc.posw.PoSWDiffAdjust(header, stakes, totalStakePerBlock)
+	stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+	return bc.posw.PoSWDiffAdjust(header, stakes, stakePerBlock)
 }
 
 func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
@@ -1162,26 +1170,12 @@ func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, e
 	return stakes, nil
 }
 
-func (bc *RootBlockChain) GetTotalStakePerBlock(height uint64, time uint64) *big.Int {
+func (bc *RootBlockChain) GetStakePerBlock(time uint64) *big.Int {
 	if bc.chainConfig.EnableRootPoswStakingDecayTimestamp == 0 || time < bc.chainConfig.EnableRootPoswStakingDecayTimestamp {
 		return bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock
 	}
-	epoch := height / bc.chainConfig.Root.EpochInterval
-	cache := bc.getRootEpochDataCache(epoch)
-	return cache.StakePreBlock
-}
 
-func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
-	pub, err := crypto.Ecrecover(sighash, sig[:])
-	if err != nil {
-		return nil, err
-	}
-	if len(pub) == 0 || pub[0] != 4 {
-		return nil, errors.New("invalid public key")
-	}
-	var addr account.Recipient
-	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
-	return &addr, nil
+	return new(big.Int).Div(bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock, new(big.Int).SetUint64(2))
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
@@ -1275,36 +1269,21 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	genesisTokenBalance.Add(genesisTokenBalance, bc.getCoinbaseAmount(rootBlock.NumberU64()))
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
 	return rewardTokenMap, nil
-
 }
 
 func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
 	epoch := height / bc.Config().Root.EpochInterval
-	cache := bc.getRootEpochDataCache(epoch)
-	return cache.CoinbaseAmount
-}
-
-func (bc *RootBlockChain) getRootEpochDataCache(epoch uint64) *RootEpochDataCache {
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	cache, ok := bc.epochDataCache[epoch]
+	coinbaseAmount, ok := bc.coinbaseAmountCache[epoch]
 	if !ok {
-		decayNumerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch)
-		decayDenominator := powerBigInt(new(big.Rat).Set(bc.Config().BlockRewardDecayFactor).Denom(), epoch)
-		coinbaseAmount := new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, decayNumerator)
-		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, decayDenominator)
-
-		value := bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock
-		delayData := new(big.Int).Mul(value, decayNumerator)
-		delayData = new(big.Int).Div(delayData, decayDenominator)
-
-		cache = &RootEpochDataCache{
-			CoinbaseAmount: coinbaseAmount,
-			StakePreBlock:  delayData,
-		}
-		bc.epochDataCache[epoch] = cache
+		numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch)
+		denominator := powerBigInt(new(big.Rat).Set(bc.Config().BlockRewardDecayFactor).Denom(), epoch)
+		coinbaseAmount = new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
+		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
+		bc.mu.Lock()
+		bc.coinbaseAmountCache[epoch] = coinbaseAmount
+		bc.mu.Unlock()
 	}
-	return cache
+	return coinbaseAmount
 }
 
 func (bc *RootBlockChain) IsMinorBlockValidated(mHash common.Hash) bool {
@@ -1460,8 +1439,8 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 		return nil, nil
 	}
 	stakes, _ := bc.getSignedPoSWStakes(header)
-	totalStakePerBlock := bc.GetTotalStakePerBlock(header.NumberU64(), header.GetTime())
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, totalStakePerBlock)
+	stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, stakePerBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,
