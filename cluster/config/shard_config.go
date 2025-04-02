@@ -5,12 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"strings"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"math/big"
-	"strings"
 )
 
 type ShardGenesis struct {

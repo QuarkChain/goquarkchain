@@ -3,8 +3,9 @@ package p2p
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/serialize"
 )
 
 const (

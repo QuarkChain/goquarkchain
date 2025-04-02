@@ -1,9 +1,10 @@
 package miner
 
 import (
+	"math/big"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"math/big"
 )
 
 type MinerAPI interface {

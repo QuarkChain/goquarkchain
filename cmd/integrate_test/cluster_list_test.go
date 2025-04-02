@@ -1,8 +1,14 @@
-//+build integrate_test
+//go:build integrate_test
+// +build integrate_test
 
 package test
 
 import (
+	"math/big"
+	"runtime"
+	"testing"
+	"time"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -11,10 +17,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"runtime"
-	"testing"
-	"time"
 )
 
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
@@ -829,44 +831,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	runtime.GC()
 }
 
-/*func TestNewBlockHeaderPool(t *testing.T) {
-	cfglist := GetClusterConfig(1, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
-	_, clstrList := CreateClusterList(1, cfglist)
-	clstrList.Start(5*time.Second, true)
-
-	b1 := tipGen(nil, clstrList[0].GetShard(2))
-	err := clstrList[0].master.AddMinorBlock(b1.Branch().Value, b1)
-	assert.NoError(t, err)
-	// Update config to force checking diff
-	clstrList[0].clstrCfg.Quarkchain.SkipMinorDifficultyCheck = false
-	b2 := b1.CreateBlockToAppend(nil, big.NewInt(12345), nil, nil, nil,
-		nil, nil)
-	shard := clstrList[0].slavelist[0].GetShard(b2.Branch().Value)
-	_ = shard.HandleNewTip(nil, b2.Header(), "")
-	// Also the block should not exist in new block pool
-	inPool := func(bHash ethCommon.Hash) bool {
-		v := reflect.ValueOf(*shard)
-		f := v.FieldByName("mBPool")
-		p := f.FieldByName("BlockPool")
-		for _, e := range p.MapKeys() {
-			if i, ok := p.MapIndex(e).Interface().(ethCommon.Hash); ok {
-				if bytes.Compare(bHash[:], i[:]) > 0 {
-					return true
-				}
-			}
-		}
-		return false
-	}
-	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return !inPool(b2.Hash())
-	}, 10), true)
-
-	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
-}*/
-
-//Test the broadcast is only done to the neighbors
+// Test the broadcast is only done to the neighbors
 func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)

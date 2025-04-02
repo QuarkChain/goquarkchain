@@ -2,6 +2,7 @@ package account
 
 import (
 	"errors"
+	
 	"github.com/QuarkChain/goquarkchain/common"
 )
 

@@ -3,14 +3,15 @@ package utils
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/internal/debug"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
+	
+	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/internal/debug"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Fatalf formats a message to standard error and exits the program.

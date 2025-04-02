@@ -2,12 +2,13 @@ package types
 
 import (
 	"encoding/hex"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func bytesToUint64(data string) uint64 {

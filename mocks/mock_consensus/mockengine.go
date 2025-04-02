@@ -5,12 +5,13 @@
 package mock_consensus
 
 import (
+	"math/big"
+	"reflect"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/golang/mock/gomock"
-	"math/big"
-	"reflect"
 )
 
 // MockEngine is a mock of Engine interface

@@ -1,8 +1,9 @@
 package account
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+	
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsNeighbor(t *testing.T) {

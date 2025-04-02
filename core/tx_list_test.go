@@ -17,10 +17,10 @@
 package core
 
 import (
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/rand"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
