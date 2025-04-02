@@ -1,11 +1,12 @@
 package p2p
 
 import (
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"reflect"
 	"testing"
+	
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/stretchr/testify/assert"
 )
 
 type codeC struct {

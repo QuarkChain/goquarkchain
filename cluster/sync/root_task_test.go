@@ -3,7 +3,6 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -18,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/golang/mock/gomock"

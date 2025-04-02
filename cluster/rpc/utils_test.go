@@ -1,11 +1,8 @@
 package rpc
 
 import (
-	"sync"
-)
-
-import (
 	"context"
+	"sync"
 )
 
 // MasterServerSideOp juest for test

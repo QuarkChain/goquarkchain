@@ -1,11 +1,12 @@
 package types
 
 import (
+	"reflect"
+	"testing"
+	
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"reflect"
-	"testing"
 )
 
 func TestReceiptSerializing(t *testing.T) {

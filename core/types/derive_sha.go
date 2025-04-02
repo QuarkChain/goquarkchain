@@ -4,13 +4,14 @@ package types
 
 import (
 	"bytes"
+	"reflect"
+	
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"reflect"
 )
 
 type DerivableList interface {

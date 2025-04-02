@@ -2,9 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	ethcom "github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type ChainConfig struct {

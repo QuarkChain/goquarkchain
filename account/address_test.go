@@ -4,8 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+	
+	"github.com/stretchr/testify/assert"
 )
 
 type AddressTestStruct struct {

@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"math/big"
+	"reflect"
+	"testing"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"reflect"
-	"testing"
 )
 
 // The values in those tests are from the EvmTransaction Tests

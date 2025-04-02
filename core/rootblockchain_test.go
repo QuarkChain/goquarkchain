@@ -113,31 +113,6 @@ func testBlockChainImport(chain []*types.RootBlock, blockchain *RootBlockChain) 
 	return nil
 }
 
-// testHeaderChainImport tries to process a chain of header, writing them into
-// the database if successful.
-func testHeaderChainImport(chain []*types.RootBlockHeader, blockchain *RootBlockChain) error {
-	for _, header := range chain {
-		// Try and validate the header
-		if err := blockchain.engine.VerifyHeader(blockchain, header, false); err != nil {
-			return err
-		}
-		// Manually insert the header into the database, but don't reorganise (allows subsequent testing)
-		blockchain.mu.Lock()
-		rawdb.WriteRootBlockHeader(blockchain.db, header)
-		blockchain.mu.Unlock()
-	}
-	return nil
-}
-
-func insertCdhain(done chan bool, blockchain *RootBlockChain, chain []types.IBlock, t *testing.T) {
-	_, err := blockchain.InsertChain(chain)
-	if err != nil {
-		fmt.Println(err)
-		t.FailNow()
-	}
-	done <- true
-}
-
 func TestLastBlock(t *testing.T) {
 	engine := new(consensus.FakeEngine)
 	_, blockchain, err := newCanonical(engine, 0)
@@ -723,6 +698,15 @@ func TestGetBlockCnt(t *testing.T) {
 
 }
 
+func BenchmarkBlockChain_1x1000ValueTransferToNonexisting(b *testing.B) {
+	var (
+		numitems  = 1000
+		numBlocks = 1
+	)
+
+	benchmarkLargeNumberOfValueToNonexisting(b, numitems, numBlocks)
+}
+
 // Benchmarks large blocks with value transfers to non-existing accounts
 func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks int) {
 	engine := new(consensus.FakeEngine)
@@ -772,13 +756,4 @@ func ToBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
 		blocks[i] = block
 	}
 	return blocks
-}
-
-func BenchmarkBlockChain_1x1000ValueTransferToNonexisting(b *testing.B) {
-	var (
-		numitems  = 1000
-		numBlocks = 1
-	)
-
-	benchmarkLargeNumberOfValueToNonexisting(b, numitems, numBlocks)
 }

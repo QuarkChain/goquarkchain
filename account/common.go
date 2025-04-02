@@ -5,10 +5,11 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"encoding/binary"
-	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Uint32ToBytes trans uint32 num to bytes

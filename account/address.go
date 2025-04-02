@@ -5,11 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
+	
 	"github.com/QuarkChain/goquarkchain/common"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"reflect"
-	"strings"
 )
 
 // Address include recipient and fullShardKey

@@ -3,11 +3,12 @@
 package rawdb
 
 import (
+	"math/big"
+	"testing"
+	
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"math/big"
-	"testing"
 )
 
 // Tests that positional lookup metadata can be stored and retrieved.

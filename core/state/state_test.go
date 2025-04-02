@@ -18,13 +18,14 @@ package state
 
 import (
 	"bytes"
+	checker "gopkg.in/check.v1"
+	"math/big"
+	"testing"
+	
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	checker "gopkg.in/check.v1"
-	"math/big"
-	"testing"
 )
 
 var (
