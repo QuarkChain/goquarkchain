@@ -30,7 +30,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # install golang
 WORKDIR /code
-RUN curl -sSL https://storage.googleapis.com/golang/go1.14.1.linux-amd64.tar.gz \
+RUN curl -sSL https://storage.googleapis.com/golang/go1.14.12.linux-amd64.tar.gz \
 		| tar -v -C /usr/local -xz
 ENV GOPATH $HOME/go
 ENV PATH $PATH:/usr/local/go/bin
