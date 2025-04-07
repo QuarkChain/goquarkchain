@@ -520,11 +520,25 @@ func importPublicKey(pubKey []byte) (*ecies.PublicKey, error) {
 		return nil, fmt.Errorf("invalid public key length %v (expect 64/65)", len(pubKey))
 	}
 	// TODO: fewer pointless conversions
+	if !isOnCurve(pubKey65) {
+		return nil, errors.New("invalid secp256k1 public key")
+	}
 	pub, err := crypto.UnmarshalPubkey(pubKey65)
 	if err != nil {
 		return nil, err
 	}
 	return ecies.ImportECDSAPublic(pub), nil
+}
+
+func isOnCurve(pubKey65 []byte) bool {
+	x, y := elliptic.Unmarshal(crypto.S256(), pubKey65)
+	if x == nil {
+		return false
+	}
+	if !crypto.S256().IsOnCurve(x, y) {
+		return false
+	}
+	return true
 }
 
 func exportPubkey(pub *ecies.PublicKey) []byte {
