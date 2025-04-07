@@ -28,9 +28,9 @@ If you prefer to use Docker, you can [run a cluster inside Docker container](#ru
 ###  Setup Go Environment
 Goquarkchain requires golang sdk >= 1.13. You can skip this step if your environment meets the condition.
 ```bash
-# take go1.14.1 for example:
-wget https://studygolang.com/dl/golang/go1.14.1.linux-amd64.tar.gz
-sudo tar xvzf go1.14.1.linux-amd64.tar.gz -C /usr/local
+# take go1.14.12 for example:
+wget https://studygolang.com/dl/golang/go1.14.12.linux-amd64.tar.gz
+sudo tar xvzf go1.14.12.linux-amd64.tar.gz -C /usr/local
 ```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
@@ -46,7 +46,7 @@ source ~/.profile
 ```
 Check Go installation
 ```bash
-go version #go version go1.14.1 linux/amd64
+go version #go version go1.14.12 linux/amd64
 ```
 ### Setup RocksDB Environment
 Before install RocksDB, you'll need to install the following dependency packages.
@@ -306,8 +306,7 @@ However for CentOS specifically, you can try the following steps:
 A: We will support as many platforms as we can in the future, but currently only Ubuntu is fully tested, so it is recommended that you use Docker.  
 However for macOS specifically, you can try the following steps:
 
-First,you should download xcode through the app store 
-and then open  terminal  
+First, you should download xcode through the app store and then open terminal  
  ```bash
  #install brew:
          /usr/bin/ruby -e “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)”
