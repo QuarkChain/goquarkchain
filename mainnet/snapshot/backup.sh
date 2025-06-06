@@ -33,5 +33,5 @@ cd -
 echo $DATE > $LATEST_FILE
 
 # this  need aws s3 'Access key ID' and 'Private access key',and that key must have permission to s3
-aws s3 sync $BACKUP_DIR s3://qkcmainnet-go/data --acl public-read
+aws s3 sync $BACKUP_DIR s3://goqkcmainnet/data
 
