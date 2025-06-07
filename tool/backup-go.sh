@@ -11,7 +11,7 @@ echo $filename
 
 
 rm $filename
-curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output $filename
+curl https://goqkcmainnet.s3.amazonaws.com/data/`curl https://goqkcmainnet.s3.amazonaws.com/data/LATEST`.tar.gz --output $filename
 
 sshpass -p $PriKey scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $filename u446960@u446960.your-storagebox.de:public-data/$filename
 

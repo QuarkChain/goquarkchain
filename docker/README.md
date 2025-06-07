@@ -18,9 +18,9 @@ $ sudo docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cm
 # every 24 hours a snapshot of the database will be taken and uploaded by the QuarkChain team.
 # once you start your cluster using the downloaded database your cluster only need to sync
 # the blocks mined in the past 24 hours or less.
-curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+curl https://goqkcmainnet.s3.amazonaws.com/data/`curl https://goqkcmainnet.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
 # if use rocksdb 
-# curl https://qkcmainnet-go.s3.amazonaws.com/data/qkc_rocksdb.tar.gz --output data.tar.gz (not suggest,not update,rootBlock's height:59w)
+# curl https://goqkcmainnet.s3.amazonaws.com/data/qkc_rocksdb.tar.gz --output data.tar.gz (not suggest,not update,rootBlock's height:59w)
 # then should unzip to the right path
 
 # INSIDE the container
