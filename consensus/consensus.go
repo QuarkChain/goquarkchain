@@ -387,7 +387,7 @@ func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 	select {
 	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, addr: addr}:
 	case <-c.exitCh:
-		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
+		return nil, errors.New(fmt.Sprintf("%s hash stopped", c.Name()))
 	}
 
 	select {
