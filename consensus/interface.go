@@ -90,7 +90,7 @@ type Engine interface {
 	Close() error
 }
 
-// PoW is the quarkchain version of PoW consensus engine, with a conveninent method for
+// PoW is the quarkchain version of PoW consensus engine, with a convenient method for
 // remote miners.
 type PoW interface {
 	Engine
