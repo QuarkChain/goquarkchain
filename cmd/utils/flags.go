@@ -518,7 +518,7 @@ func checkExclusive(ctx *cli.Context, args ...interface{}) {
 	}
 }
 
-// RegisterEthService adds an QuarkChain client to the stack.
+// RegisterMasterService adds an QuarkChain client to the stack.
 func RegisterMasterService(stack *service.Node, cfg *config.ClusterConfig) {
 	err := stack.Register(func(ctx *service.ServiceContext) (service.Service, error) {
 		// TODO add cluster create function
