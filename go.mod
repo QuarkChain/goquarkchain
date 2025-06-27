@@ -40,10 +40,9 @@ require (
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
-	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/crypto v0.1.0
+	golang.org/x/net v0.1.0
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/grpc v1.19.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/karalabe/cookiejar.v1 v1.0.0-20141109175019-e1490cae028c
