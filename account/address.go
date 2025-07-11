@@ -170,7 +170,7 @@ func (Self UnprefixedAddress) Address() Address {
 	}
 }
 
-// MarshalJSON Address serialisation
+// MarshalText Address serialisation
 func (Self UnprefixedAddress) MarshalText() (out []byte, err error) {
 	return []byte(Self.Address().ToHex()), nil
 }
