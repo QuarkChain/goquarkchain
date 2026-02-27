@@ -90,6 +90,8 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          send=false
+          overall="OK"
           if [[ "$CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
             send=true
@@ -122,7 +124,7 @@ jobs:
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
           echo >> "$GITHUB_OUTPUT"
-          echo "check-networkinfo (mainnet + devnet matrix): $CHECK_RESULT" >> "$GITHUB_OUTPUT"
+          echo "check-networkinfo (mainnet + devnet): $CHECK_RESULT" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send email
@@ -133,7 +135,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.RPC_HEALTHCHECK_SMTP_USERNAME }}
           password: ${{ secrets.RPC_HEALTHCHECK_SMTP_PASSWORD }}
-          from: QuarkChain RPC Healthcheck
+          from: QuarkChainRPC
           to: ${{ secrets.RPC_HEALTHCHECK_EMAIL_TO }}
           subject: ${{ steps.compose.outputs.subject }}
           body: ${{ steps.compose.outputs.body }}
