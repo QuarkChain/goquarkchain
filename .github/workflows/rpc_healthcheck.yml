@@ -107,6 +107,9 @@ jobs:
               fi
             fi
           fi
+          
+          # debug
+          send=true
 
           if [[ "$overall" == "OK" ]]; then
             subject="✅ QuarkChain RPC Healthcheck OK"
