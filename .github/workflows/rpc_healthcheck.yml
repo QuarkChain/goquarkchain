@@ -10,10 +10,6 @@ on:
     - cron: '41 10 * * *'
     - cron: '41 18 * * *'
   workflow_dispatch:
-  push:
-    branches:
-      - dl-rpc-check
-
 
 jobs:
   check-networkinfo:
@@ -105,10 +101,6 @@ jobs:
               fi
             fi
           fi
-
-          # debug
-          send=true
-
           if [[ "$overall" == "OK" ]]; then
             subject="✅ QuarkChain RPC Healthcheck OK"
           else
