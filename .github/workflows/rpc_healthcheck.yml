@@ -26,10 +26,10 @@ jobs:
         include:
           - network: mainnet
             rpc_url: https://rpc.indexer.mainnet.quarkchain.io:38391
-            expected_network_id: "0x1"
+            expected_network_id: "0x0"
           - network: devnet
             rpc_url: https://rpc.indexer.devnet.quarkchain.io:38392
-            expected_network_id: "0xff"
+            expected_network_id: "0xf"
 
     steps:
       - name: Check endpoint JSON field
@@ -107,7 +107,7 @@ jobs:
               fi
             fi
           fi
-          
+
           # debug
           send=true
 
