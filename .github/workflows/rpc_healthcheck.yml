@@ -29,7 +29,7 @@ jobs:
             expected_network_id: "0x1"
           - network: devnet
             rpc_url: https://rpc.indexer.devnet.quarkchain.io:38392
-            expected_network_id: "0xf"
+            expected_network_id: "0xff"
 
     steps:
       - name: Check endpoint JSON field
@@ -123,8 +123,6 @@ jobs:
           echo "Event: $EVENT_NAME" >> "$GITHUB_OUTPUT"
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
-          echo >> "$GITHUB_OUTPUT"
-          echo "check-networkinfo (mainnet + devnet): $CHECK_RESULT" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send email
