@@ -1,0 +1,140 @@
+name: RPC Healthcheck
+
+permissions:
+  contents: read  
+  pull-requests: write
+
+on:
+  schedule:
+    - cron: '41 2 * * *'
+    - cron: '41 10 * * *'
+    - cron: '41 18 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - dl-rpc-check
+
+
+jobs:
+  check-networkinfo:
+    name: Check ${{ matrix.network }} networkInfo
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - network: mainnet
+            rpc_url: https://rpc.indexer.mainnet.quarkchain.io:38391
+            expected_network_id: "0x1"
+          - network: devnet
+            rpc_url: https://rpc.indexer.devnet.quarkchain.io:38392
+            expected_network_id: "0xff"
+
+    steps:
+      - name: Check endpoint JSON field
+        shell: bash
+        env:
+          RPC_URL: ${{ matrix.rpc_url }}
+          EXPECTED_NETWORK_ID: ${{ matrix.expected_network_id }}
+          NETWORK_NAME: ${{ matrix.network }}
+        run: |
+          set -euo pipefail
+
+          payload='{"jsonrpc":"2.0","id":"id","method":"networkInfo","params":[]}'
+          resp_file="${RUNNER_TEMP}/networkinfo_${NETWORK_NAME}.json"
+          : > "$resp_file"
+
+          code="$(
+            curl --silent --show-error --location \
+              --retry 3 --retry-delay 5 --retry-all-errors \
+              --connect-timeout 10 --max-time 30 \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              --data "$payload" \
+              --output "$resp_file" --write-out '%{http_code}' \
+              "$RPC_URL" \
+              || echo '000'
+          )"
+
+          if [[ "$code" != "200" ]]; then
+            echo "[$NETWORK_NAME] HTTP status not 200: $code"
+            cat "$resp_file"
+            exit 1
+          fi
+
+          if ! jq -e --arg expected "$EXPECTED_NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
+            echo "[$NETWORK_NAME] JSON check failed: expected .result.networkId == $EXPECTED_NETWORK_ID"
+            cat "$resp_file"
+            exit 1
+          fi
+
+          echo "[$NETWORK_NAME] JSON check passed: .result.networkId == $EXPECTED_NETWORK_ID"
+
+  notify:
+    name: Notify (email)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - check-networkinfo
+    if: ${{ always() }}
+
+    steps:
+      - name: Compose email
+        id: compose
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          CHECK_RESULT: ${{ needs.check-networkinfo.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          send=false
+          overall="OK"
+
+          if [[ "$CHECK_RESULT" != "success" ]]; then
+            overall="FAILED"
+            send=true
+          else
+            # Success: send only on manual trigger, or once per day for scheduled runs.
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              send=true
+            elif [[ "$EVENT_NAME" == "schedule" ]]; then
+              if [[ "${EVENT_SCHEDULE:-}" == "41 18 * * *" ]]; then
+                send=true
+              fi
+            fi
+          fi
+
+          if [[ "$overall" == "OK" ]]; then
+            subject="✅ QuarkChain RPC Healthcheck OK"
+          else
+            subject="❌ QuarkChain RPC Healthcheck FAILED"
+          fi
+
+          echo "send=$send" >> "$GITHUB_OUTPUT"
+          echo "subject=$subject" >> "$GITHUB_OUTPUT"
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "QuarkChain RPC Healthcheck: $overall" >> "$GITHUB_OUTPUT"
+          echo >> "$GITHUB_OUTPUT"
+          echo "Event: $EVENT_NAME" >> "$GITHUB_OUTPUT"
+          echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
+          echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
+          echo >> "$GITHUB_OUTPUT"
+          echo "check-networkinfo (mainnet + devnet matrix): $CHECK_RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send email
+        if: ${{ steps.compose.outputs.send == 'true' }}
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.RPC_HEALTHCHECK_SMTP_USERNAME }}
+          password: ${{ secrets.RPC_HEALTHCHECK_SMTP_PASSWORD }}
+          from: QuarkChain RPC Healthcheck
+          to: ${{ secrets.RPC_HEALTHCHECK_EMAIL_TO }}
+          subject: ${{ steps.compose.outputs.subject }}
+          body: ${{ steps.compose.outputs.body }}
