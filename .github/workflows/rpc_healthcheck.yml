@@ -26,7 +26,7 @@ jobs:
         include:
           - network: mainnet
             rpc_url: https://rpc.indexer.mainnet.quarkchain.io:38391
-            expected_network_id: "0x0"
+            expected_network_id: "0x1"
           - network: devnet
             rpc_url: https://rpc.indexer.devnet.quarkchain.io:38392
             expected_network_id: "0xf"
@@ -64,7 +64,7 @@ jobs:
           fi
 
           if ! jq -e --arg expected "$EXPECTED_NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
-            echo "[$NETWORK_NAME] JSON check failed: expected .result.networkId == $EXPECTED_NETWORK_ID"
+            echo "[$NETWORK_NAME] JSON check failed: .result.networkId == $EXPECTED_NETWORK_ID"
             cat "$resp_file"
             exit 1
           fi
@@ -90,10 +90,6 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-
-          send=false
-          overall="OK"
-
           if [[ "$CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
             send=true
