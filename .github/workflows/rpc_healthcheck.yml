@@ -130,16 +130,18 @@ jobs:
           overall="OK"
           report_dir="${RUNNER_TEMP}/rpc-healthcheck"
 
-          table_rows=''
-          html_rows=''
+          table_rows_with_error=''
+          table_rows_no_error=''
+          html_rows_with_error=''
+          html_rows_no_error=''
 
           shopt -s nullglob
           report_files=("$report_dir"/*.json)
           if [[ ${#report_files[@]} -eq 0 ]]; then
             overall="FAILED"
             send=true
-            table_rows='| unknown | unknown | failure | missing endpoint report artifact |'
-            html_rows='<tr><td>unknown</td><td>unknown</td><td>failure</td><td>missing endpoint report artifact</td></tr>'
+            table_rows_with_error='| unknown | unknown | failure | missing endpoint report artifact |'
+            html_rows_with_error='<tr><td>unknown</td><td>unknown</td><td>failure</td><td>missing endpoint report artifact</td></tr>'
           else
             for f in "${report_files[@]}"; do
               network="$(jq -r '.network' "$f")"
@@ -162,7 +164,8 @@ jobs:
               # Escape markdown table special chars
               rpc_url="${rpc_url//|/\\|}"
               error="${error//|/\\|}"
-              table_rows+="| ${network} | ${rpc_url} | ${result} | ${error} |\n"
+              table_rows_with_error+="| ${network} | ${rpc_url} | ${result} | ${error} |\n"
+              table_rows_no_error+="| ${network} | ${rpc_url} | ${result} |\n"
 
               network_html="${network//&/&amp;}"
               network_html="${network_html//</&lt;}"
@@ -176,7 +179,8 @@ jobs:
               error_html="${error//&/&amp;}"
               error_html="${error_html//</&lt;}"
               error_html="${error_html//>/&gt;}"
-              html_rows+="<tr><td>${network_html}</td><td>${rpc_url_html}</td><td>${result_html}</td><td>${error_html}</td></tr>"
+              html_rows_with_error+="<tr><td>${network_html}</td><td>${rpc_url_html}</td><td>${result_html}</td><td>${error_html}</td></tr>"
+              html_rows_no_error+="<tr><td>${network_html}</td><td>${rpc_url_html}</td><td>${result_html}</td></tr>"
             done
           fi
 
@@ -211,17 +215,28 @@ jobs:
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
           echo >> "$GITHUB_OUTPUT"
-          echo "| network | rpc_url | result | error |" >> "$GITHUB_OUTPUT"
-          echo "|---|---|---|---|" >> "$GITHUB_OUTPUT"
-          printf "%b" "$table_rows" >> "$GITHUB_OUTPUT"
+          if [[ "$overall" == "OK" ]]; then
+            echo "| network | rpc_url | result |" >> "$GITHUB_OUTPUT"
+            echo "|---|---|---|" >> "$GITHUB_OUTPUT"
+            printf "%b" "$table_rows_no_error" >> "$GITHUB_OUTPUT"
+          else
+            echo "| network | rpc_url | result | error |" >> "$GITHUB_OUTPUT"
+            echo "|---|---|---|---|" >> "$GITHUB_OUTPUT"
+            printf "%b" "$table_rows_with_error" >> "$GITHUB_OUTPUT"
+          fi
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "html_body<<EOF" >> "$GITHUB_OUTPUT"
           echo "<p>QuarkChain RPC Healthcheck: <b>${overall}</b></p>" >> "$GITHUB_OUTPUT"
           echo "<p>Event: ${EVENT_NAME}<br/>Schedule: ${EVENT_SCHEDULE:-N/A}<br/>Run: <a href=\"${RUN_URL}\">${RUN_URL}</a></p>" >> "$GITHUB_OUTPUT"
           echo "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">" >> "$GITHUB_OUTPUT"
-          echo "<thead><tr><th>network</th><th>rpc_url</th><th>result</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
-          echo "<tbody>${html_rows}</tbody>" >> "$GITHUB_OUTPUT"
+          if [[ "$overall" == "OK" ]]; then
+            echo "<thead><tr><th>network</th><th>rpc_url</th><th>result</th></tr></thead>" >> "$GITHUB_OUTPUT"
+            echo "<tbody>${html_rows_no_error}</tbody>" >> "$GITHUB_OUTPUT"
+          else
+            echo "<thead><tr><th>network</th><th>rpc_url</th><th>result</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
+            echo "<tbody>${html_rows_with_error}</tbody>" >> "$GITHUB_OUTPUT"
+          fi
           echo "</table>" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
