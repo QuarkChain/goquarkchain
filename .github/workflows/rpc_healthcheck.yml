@@ -10,10 +10,6 @@ on:
     - cron: '41 10 * * *'
     - cron: '41 18 * * *'
   workflow_dispatch:
-  # debug
-  push:
-    branches:
-      - dl-rpc-check
 
 
 jobs:
@@ -203,9 +199,6 @@ jobs:
             subject="❌ QuarkChain RPC Healthcheck FAILED"
           fi
 
-          # debug
-          send=true
-          
           echo "send=$send" >> "$GITHUB_OUTPUT"
           echo "subject=$subject" >> "$GITHUB_OUTPUT"
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
