@@ -11,6 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: daily-test
         run: |          
+          export GOPROXY=https://proxy.golang.org
           cd consensus/qkchash/native && make && cd -
           go vet ./...
           go test -timeout 1m ./... -gcflags=-l
