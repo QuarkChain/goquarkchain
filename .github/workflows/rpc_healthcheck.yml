@@ -10,6 +10,11 @@ on:
     - cron: '41 10 * * *'
     - cron: '41 18 * * *'
   workflow_dispatch:
+  # debug
+  push:
+    branches:
+      - dl-rpc-check
+
 
 jobs:
   check-networkinfo:
@@ -46,6 +51,7 @@ jobs:
 
           payload='{"jsonrpc":"2.0","id":"id","method":"networkInfo","params":[]}'
           resp_file="${RUNNER_TEMP}/networkinfo_${NETWORK_NAME}.json"
+          report_file="${RUNNER_TEMP}/networkinfo_report_${NETWORK_NAME}.json"
           : > "$resp_file"
 
           code="$(
@@ -60,19 +66,39 @@ jobs:
               || echo '000'
           )"
 
+          result="success"
+          error_msg=""
+
           if [[ "$code" != "200" ]]; then
-            echo "[$NETWORK_NAME] HTTP status not 200: $code"
-            cat "$resp_file"
-            exit 1
+            result="failure"
+            error_msg="HTTP status not 200: $code"
+          elif ! jq -e --arg expected "$EXPECTED_NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
+            result="failure"
+            error_msg="JSON check failed: .result.networkId == $EXPECTED_NETWORK_ID"
           fi
 
-          if ! jq -e --arg expected "$EXPECTED_NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
-            echo "[$NETWORK_NAME] JSON check failed: .result.networkId == $EXPECTED_NETWORK_ID"
+          jq -n \
+            --arg network "$NETWORK_NAME" \
+            --arg rpc_url "$RPC_URL" \
+            --arg result "$result" \
+            --arg error "$error_msg" \
+            '{network: $network, rpc_url: $rpc_url, result: $result, error: $error}' > "$report_file"
+
+          if [[ "$result" != "success" ]]; then
+            echo "[$NETWORK_NAME] $error_msg"
             cat "$resp_file"
             exit 1
           fi
 
           echo "[$NETWORK_NAME] JSON check passed: .result.networkId == $EXPECTED_NETWORK_ID"
+
+      - name: Upload endpoint report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpc-healthcheck-${{ matrix.network }}
+          path: ${{ runner.temp }}/networkinfo_report_${{ matrix.network }}.json
+          if-no-files-found: error
 
   notify:
     name: Notify (email)
@@ -83,6 +109,13 @@ jobs:
     if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' }}
 
     steps:
+      - name: Download endpoint reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rpc-healthcheck-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/rpc-healthcheck
+
       - name: Compose email
         id: compose
         shell: bash
@@ -95,6 +128,44 @@ jobs:
           set -euo pipefail
           send=false
           overall="OK"
+          report_dir="${RUNNER_TEMP}/rpc-healthcheck"
+
+          table_header='| network | rpc_url | result | error |'
+          table_sep='|---|---|---|---|'
+          table_rows=''
+
+          shopt -s nullglob
+          report_files=("$report_dir"/*.json)
+          if [[ ${#report_files[@]} -eq 0 ]]; then
+            overall="FAILED"
+            send=true
+            table_rows='| unknown | unknown | failure | missing endpoint report artifact |'
+          else
+            for f in "${report_files[@]}"; do
+              network="$(jq -r '.network' "$f")"
+              rpc_url="$(jq -r '.rpc_url' "$f")"
+              result="$(jq -r '.result' "$f")"
+              error="$(jq -r '.error' "$f")"
+
+              if [[ "$result" != "success" ]]; then
+                overall="FAILED"
+                send=true
+                if [[ -z "$error" ]]; then
+                  error="unknown error"
+                fi
+              else
+                if [[ -z "$error" ]]; then
+                  error="-"
+                fi
+              fi
+
+              # Escape markdown table special chars
+              rpc_url="${rpc_url//|/\\|}"
+              error="${error//|/\\|}"
+              table_rows+="| ${network} | ${rpc_url} | ${result} | ${error} |\n"
+            done
+          fi
+
           if [[ "$CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
             send=true
@@ -114,6 +185,9 @@ jobs:
             subject="❌ QuarkChain RPC Healthcheck FAILED"
           fi
 
+          # debug
+          send=true
+          
           echo "send=$send" >> "$GITHUB_OUTPUT"
           echo "subject=$subject" >> "$GITHUB_OUTPUT"
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
@@ -122,6 +196,10 @@ jobs:
           echo "Event: $EVENT_NAME" >> "$GITHUB_OUTPUT"
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
+          echo >> "$GITHUB_OUTPUT"
+          echo "$table_header" >> "$GITHUB_OUTPUT"
+          echo "$table_sep" >> "$GITHUB_OUTPUT"
+          printf "%b" "$table_rows" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send email
