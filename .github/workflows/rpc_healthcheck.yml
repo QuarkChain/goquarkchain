@@ -130,9 +130,8 @@ jobs:
           overall="OK"
           report_dir="${RUNNER_TEMP}/rpc-healthcheck"
 
-          table_header='| network | rpc_url | result | error |'
-          table_sep='|---|---|---|---|'
           table_rows=''
+          html_rows=''
 
           shopt -s nullglob
           report_files=("$report_dir"/*.json)
@@ -140,6 +139,7 @@ jobs:
             overall="FAILED"
             send=true
             table_rows='| unknown | unknown | failure | missing endpoint report artifact |'
+            html_rows='<tr><td>unknown</td><td>unknown</td><td>failure</td><td>missing endpoint report artifact</td></tr>'
           else
             for f in "${report_files[@]}"; do
               network="$(jq -r '.network' "$f")"
@@ -163,6 +163,20 @@ jobs:
               rpc_url="${rpc_url//|/\\|}"
               error="${error//|/\\|}"
               table_rows+="| ${network} | ${rpc_url} | ${result} | ${error} |\n"
+
+              network_html="${network//&/&amp;}"
+              network_html="${network_html//</&lt;}"
+              network_html="${network_html//>/&gt;}"
+              rpc_url_html="${rpc_url//&/&amp;}"
+              rpc_url_html="${rpc_url_html//</&lt;}"
+              rpc_url_html="${rpc_url_html//>/&gt;}"
+              result_html="${result//&/&amp;}"
+              result_html="${result_html//</&lt;}"
+              result_html="${result_html//>/&gt;}"
+              error_html="${error//&/&amp;}"
+              error_html="${error_html//</&lt;}"
+              error_html="${error_html//>/&gt;}"
+              html_rows+="<tr><td>${network_html}</td><td>${rpc_url_html}</td><td>${result_html}</td><td>${error_html}</td></tr>"
             done
           fi
 
@@ -197,9 +211,18 @@ jobs:
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
           echo >> "$GITHUB_OUTPUT"
-          echo "$table_header" >> "$GITHUB_OUTPUT"
-          echo "$table_sep" >> "$GITHUB_OUTPUT"
+          echo "| network | rpc_url | result | error |" >> "$GITHUB_OUTPUT"
+          echo "|---|---|---|---|" >> "$GITHUB_OUTPUT"
           printf "%b" "$table_rows" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "html_body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "<p>QuarkChain RPC Healthcheck: <b>${overall}</b></p>" >> "$GITHUB_OUTPUT"
+          echo "<p>Event: ${EVENT_NAME}<br/>Schedule: ${EVENT_SCHEDULE:-N/A}<br/>Run: <a href=\"${RUN_URL}\">${RUN_URL}</a></p>" >> "$GITHUB_OUTPUT"
+          echo "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">" >> "$GITHUB_OUTPUT"
+          echo "<thead><tr><th>network</th><th>rpc_url</th><th>result</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
+          echo "<tbody>${html_rows}</tbody>" >> "$GITHUB_OUTPUT"
+          echo "</table>" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send email
@@ -214,3 +237,4 @@ jobs:
           to: ${{ secrets.RPC_HEALTHCHECK_EMAIL_TO }}
           subject: ${{ steps.compose.outputs.subject }}
           body: ${{ steps.compose.outputs.body }}
+          html_body: ${{ steps.compose.outputs.html_body }}
