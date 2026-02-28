@@ -27,6 +27,12 @@ jobs:
           - network: devnet
             rpc_url: https://rpc.indexer.devnet.quarkchain.io:38392
             expected_network_id: "0xff"
+          - network: mainnetHost
+            rpc_url: http://65.108.121.223:38391
+            expected_network_id: "0x1"
+          - network: devnetHost
+            rpc_url: http://50.112.62.65:38391
+            expected_network_id: "0xff"
 
     steps:
       - name: Check endpoint JSON field
