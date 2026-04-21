@@ -34,6 +34,9 @@ jobs:
           - network: devnetHost
             rpc_url: http://50.112.62.65:38391
             expected_network_id: "0xff"
+          - network: mainnetHost-fullnode3
+            rpc_url: http://164.92.84.144:38391
+            expected_network_id: "0x1"
 
     steps:
       - name: Check endpoint JSON field
