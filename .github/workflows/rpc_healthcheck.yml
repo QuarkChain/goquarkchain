@@ -16,19 +16,31 @@ on:
 
 
 jobs:
-  check-networkinfo:
-    name: Check ${{ matrix.name }} networkInfo
+  setup:
+    name: Read targets
     if: ${{ github.repository == 'QuarkChain/goquarkchain' }}
     runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.read.outputs.targets }}
+    steps:
+      - name: Output targets
+        id: read
+        env:
+          TARGETS: ${{ secrets.RPC_HEALTHCHECK_TARGETS_JSON }}
+        run: echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+
+  check-networkinfo:
+    name: Check ${{ matrix.name }} networkInfo
+    needs: setup
+    if: ${{ needs.setup.outputs.targets != '' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      RPC_TARGETS: ${{ secrets.RPC_HEALTHCHECK_TARGETS_JSON }}
     strategy:
       fail-fast: false
       matrix:
         # JSON array string, e.g.:
         # [{"name":"QKC-L1-RPC-1","rpc_url":"https://...","network_id":"0x1"}]
-        include: ${{ fromJSON(env.RPC_TARGETS) }}
+        include: ${{ fromJSON(needs.setup.outputs.targets) }}
 
     steps:
       - name: Check endpoint JSON field
@@ -96,8 +108,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
+      - setup
       - check-networkinfo
-    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' }}
+    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && needs.setup.result != 'skipped' }}
 
     steps:
       - name: Download endpoint reports
