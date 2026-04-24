@@ -27,7 +27,11 @@ jobs:
         id: read
         env:
           TARGETS: ${{ secrets.RPC_HEALTHCHECK_TARGETS_JSON }}
-        run: echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+        run: |
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "targets<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
 
   check-networkinfo:
     name: Check ${{ matrix.name }} networkInfo
