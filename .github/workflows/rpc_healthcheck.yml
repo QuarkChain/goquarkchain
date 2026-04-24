@@ -16,27 +16,9 @@ on:
 
 
 jobs:
-  setup:
-    name: Read targets
-    if: ${{ github.repository == 'QuarkChain/goquarkchain' }}
-    runs-on: ubuntu-latest
-    outputs:
-      targets: ${{ steps.read.outputs.targets }}
-    steps:
-      - name: Output targets
-        id: read
-        env:
-          TARGETS: ${{ secrets.RPC_HEALTHCHECK_TARGETS_JSON }}
-        run: |
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "targets<<$EOF" >> "$GITHUB_OUTPUT"
-          echo "$TARGETS" >> "$GITHUB_OUTPUT"
-          echo "$EOF" >> "$GITHUB_OUTPUT"
-
   check-networkinfo:
     name: Check ${{ matrix.name }} networkInfo
-    needs: setup
-    if: ${{ needs.setup.outputs.targets != '' }}
+    if: ${{ github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -44,7 +26,7 @@ jobs:
       matrix:
         # JSON array string, e.g.:
         # [{"name":"QKC-L1-RPC-1","rpc_url":"https://...","network_id":"0x1"}]
-        include: ${{ fromJSON(needs.setup.outputs.targets) }}
+        include: ${{ fromJSON(vars.RPC_HEALTHCHECK_TARGETS_JSON) }}
 
     steps:
       - name: Check endpoint JSON field
@@ -112,9 +94,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
-      - setup
       - check-networkinfo
-    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && needs.setup.result != 'skipped' }}
+    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
 
     steps:
       - name: Download endpoint reports
@@ -148,7 +129,7 @@ jobs:
           if [[ ${#report_files[@]} -eq 0 ]]; then
             overall="FAILED"
             send=true
-            table_rows_with_error='| unknown | unknown | failure | missing endpoint report artifact |'
+            table_rows_with_error='| unknown | unknown | failure | missing endpoint report artifact |\n'
             html_rows_with_error='<tr><td>unknown</td><td>unknown</td><td>failure</td><td>missing endpoint report artifact</td></tr>'
           else
             for f in "${report_files[@]}"; do
