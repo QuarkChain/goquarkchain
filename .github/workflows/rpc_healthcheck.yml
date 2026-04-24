@@ -51,8 +51,7 @@ jobs:
               -H 'Content-Type: application/json' \
               --data "$payload" \
               --output "$resp_file" --write-out '%{http_code}' \
-              "$RPC_URL" \
-              || echo '000'
+              "$RPC_URL" || true
           )"
 
           result="success"
@@ -129,8 +128,8 @@ jobs:
           if [[ ${#report_files[@]} -eq 0 ]]; then
             overall="FAILED"
             send=true
-            table_rows_with_error='| unknown | unknown | failure | missing endpoint report artifact |\n'
-            html_rows_with_error='<tr><td>unknown</td><td>unknown</td><td>failure</td><td>missing endpoint report artifact</td></tr>'
+            table_rows_with_error='| unknown | unknown | ❌ | missing endpoint report artifact |\n'
+            html_rows_with_error='<tr><td>unknown</td><td>unknown</td><td>❌</td><td>missing endpoint report artifact</td></tr>'
           else
             for f in "${report_files[@]}"; do
               name="$(jq -r '.name' "$f")"
@@ -153,8 +152,13 @@ jobs:
               # Escape markdown table special chars
               rpc_url="${rpc_url//|/\\|}"
               error="${error//|/\\|}"
-              table_rows_with_error+="| ${name} | ${rpc_url} | ${result} | ${error} |\n"
-              table_rows_no_error+="| ${name} | ${rpc_url} | ${result} |\n"
+              if [[ "$result" == "success" ]]; then
+                result_icon="✅"
+              else
+                result_icon="❌"
+              fi
+              table_rows_with_error+="| ${name} | ${rpc_url} | ${result_icon} | ${error} |\n"
+              table_rows_no_error+="| ${name} | ${rpc_url} | ${result_icon} |\n"
 
               name_html="${name//&/&amp;}"
               name_html="${name_html//</&lt;}"
@@ -162,14 +166,11 @@ jobs:
               rpc_url_html="${rpc_url//&/&amp;}"
               rpc_url_html="${rpc_url_html//</&lt;}"
               rpc_url_html="${rpc_url_html//>/&gt;}"
-              result_html="${result//&/&amp;}"
-              result_html="${result_html//</&lt;}"
-              result_html="${result_html//>/&gt;}"
               error_html="${error//&/&amp;}"
               error_html="${error_html//</&lt;}"
               error_html="${error_html//>/&gt;}"
-              html_rows_with_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_html}</td><td>${error_html}</td></tr>"
-              html_rows_no_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_html}</td></tr>"
+              html_rows_with_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_icon}</td><td>${error_html}</td></tr>"
+              html_rows_no_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_icon}</td></tr>"
             done
           fi
 
