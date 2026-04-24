@@ -18,7 +18,7 @@ on:
 jobs:
   check-networkinfo:
     name: Check ${{ matrix.name }} networkInfo
-    if: ${{ github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
+    if: ${{ github.repository == 'QuarkChain/goquarkchain' && secrets.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -26,7 +26,7 @@ jobs:
       matrix:
         # JSON array string, e.g.:
         # [{"name":"QKC-L1-RPC-1","rpc_url":"https://...","network_id":"0x1"}]
-        include: ${{ fromJSON(vars.RPC_HEALTHCHECK_TARGETS_JSON) }}
+        include: ${{ fromJSON(secrets.RPC_HEALTHCHECK_TARGETS_JSON) }}
 
     steps:
       - name: Check endpoint JSON field
@@ -95,7 +95,7 @@ jobs:
     timeout-minutes: 5
     needs:
       - check-networkinfo
-    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
+    if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && secrets.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
 
     steps:
       - name: Download endpoint reports
