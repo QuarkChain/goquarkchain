@@ -40,6 +40,7 @@ jobs:
 
           payload='{"jsonrpc":"2.0","id":"id","method":"networkInfo","params":[]}'
           resp_file="${RUNNER_TEMP}/networkinfo_${NAME}.json"
+          curl_err_file="${RUNNER_TEMP}/curl_err_${NAME}.txt"
           report_file="${RUNNER_TEMP}/networkinfo_report_${NAME}.json"
           : > "$resp_file"
 
@@ -51,7 +52,7 @@ jobs:
               -H 'Content-Type: application/json' \
               --data "$payload" \
               --output "$resp_file" --write-out '%{http_code}' \
-              "$RPC_URL" || true
+              "$RPC_URL" 2>"$curl_err_file" || true
           )"
 
           result="success"
@@ -59,7 +60,12 @@ jobs:
 
           if [[ "$code" != "200" ]]; then
             result="failure"
-            error_msg="HTTP status not 200: $code"
+            curl_err="$(cat "$curl_err_file" 2>/dev/null | tr '\n' ' ' | xargs || true)"
+            if [[ -n "$curl_err" ]]; then
+              error_msg="HTTP $code: $curl_err"
+            else
+              error_msg="HTTP status not 200: $code"
+            fi
           elif ! jq -e --arg expected "$NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
             result="failure"
             error_msg="JSON check failed: .result.networkId == $NETWORK_ID"
