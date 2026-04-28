@@ -60,9 +60,9 @@ jobs:
 
           if [[ "$code" != "200" ]]; then
             result="failure"
-            curl_err="$(cat "$curl_err_file" 2>/dev/null | tr '\n' ' ' | xargs || true)"
+            curl_err="$(head -1 "$curl_err_file" 2>/dev/null | xargs || true)"
             if [[ -n "$curl_err" ]]; then
-              error_msg="HTTP $code: $curl_err"
+              error_msg="$curl_err"
             else
               error_msg="HTTP status not 200: $code"
             fi
