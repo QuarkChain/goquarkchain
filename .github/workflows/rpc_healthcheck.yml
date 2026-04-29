@@ -5,9 +5,6 @@ permissions:
   pull-requests: write
 
 on:
-  push:
-    branches:
-      - dl-rpc-check-new
   schedule:
     - cron: '41 2 * * *'
     - cron: '41 10 * * *'
