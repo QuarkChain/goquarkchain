@@ -4,6 +4,9 @@ permissions:
   contents: read  
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: '41 2 * * *'
@@ -76,7 +79,17 @@ jobs:
 
             if [[ "$since_last_block" -eq 0 || "$since_last_block" -gt 600 ]]; then
               result="failure"
-              error_msg="${since_last_block}s since last block"
+              _h=$(( since_last_block / 3600 ))
+              _m=$(( (since_last_block % 3600) / 60 ))
+              _s=$(( since_last_block % 60 ))
+              if [[ $_h -gt 0 ]]; then
+                _duration="${_h}h ${_m}m ${_s}s"
+              elif [[ $_m -gt 0 ]]; then
+                _duration="${_m}m ${_s}s"
+              else
+                _duration="${_s}s"
+              fi
+              error_msg="${_duration} since last block"
             fi
           fi
 
