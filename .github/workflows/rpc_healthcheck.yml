@@ -100,7 +100,7 @@ jobs:
 
       - name: Upload root chain report
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpc-healthcheck-rootchain-${{ matrix.name }}
           path: ${{ runner.temp }}/rootchain_report_${{ matrix.name }}.json
@@ -116,7 +116,7 @@ jobs:
 
     steps:
       - name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: rpc-healthcheck-rootchain-*
           merge-multiple: true
@@ -223,13 +223,13 @@ jobs:
 
       - name: Send email
         if: ${{ steps.compose.outputs.send == 'true' }}
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v17
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.RPC_HEALTHCHECK_SMTP_USERNAME }}
           password: ${{ secrets.RPC_HEALTHCHECK_SMTP_PASSWORD }}
-          from: QuarkChainRPC
+          from: QuarkChainRPC <${{ secrets.RPC_HEALTHCHECK_SMTP_USERNAME }}>
           to: ${{ secrets.RPC_HEALTHCHECK_EMAIL_TO }}
           subject: ${{ steps.compose.outputs.subject }}
           body: ${{ steps.compose.outputs.body }}
