@@ -16,84 +16,6 @@ on:
 
 
 jobs:
-  check-networkinfo:
-    name: Check ${{ matrix.name }} networkInfo
-    if: ${{ github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        # JSON array string, e.g.:
-        # [{"name":"QKC-L1-RPC-1","rpc_url":"https://...","network_id":"0x1"}]
-        include: ${{ fromJSON(vars.RPC_HEALTHCHECK_TARGETS_JSON) }}
-
-    steps:
-      - name: Check endpoint JSON field
-        shell: bash
-        env:
-          RPC_URL: ${{ matrix.rpc_url }}
-          NETWORK_ID: ${{ matrix.network_id }}
-          NAME: ${{ matrix.name }}
-        run: |
-          set -euo pipefail
-
-          payload='{"jsonrpc":"2.0","id":"id","method":"networkInfo","params":[]}'
-          resp_file="${RUNNER_TEMP}/networkinfo_${NAME}.json"
-          curl_err_file="${RUNNER_TEMP}/curl_err_${NAME}.txt"
-          report_file="${RUNNER_TEMP}/networkinfo_report_${NAME}.json"
-          : > "$resp_file"
-
-          code="$(
-            curl --silent --show-error --location \
-              --retry 3 --retry-delay 5 --retry-all-errors \
-              --connect-timeout 10 --max-time 30 \
-              -X POST \
-              -H 'Content-Type: application/json' \
-              --data "$payload" \
-              --output "$resp_file" --write-out '%{http_code}' \
-              "$RPC_URL" 2>"$curl_err_file" || true
-          )"
-
-          result="success"
-          error_msg=""
-
-          if [[ "$code" != "200" ]]; then
-            result="failure"
-            curl_err="$(head -1 "$curl_err_file" 2>/dev/null | xargs || true)"
-            if [[ -n "$curl_err" ]]; then
-              error_msg="$curl_err"
-            else
-              error_msg="HTTP status not 200: $code"
-            fi
-          elif ! jq -e --arg expected "$NETWORK_ID" '.result.networkId == $expected' "$resp_file" > /dev/null; then
-            result="failure"
-            error_msg="JSON check failed: .result.networkId == $NETWORK_ID"
-          fi
-
-          jq -n \
-            --arg name "$NAME" \
-            --arg rpc_url "$RPC_URL" \
-            --arg result "$result" \
-            --arg error "$error_msg" \
-            '{name: $name, rpc_url: $rpc_url, result: $result, error: $error}' > "$report_file"
-
-          if [[ "$result" != "success" ]]; then
-            echo "[$NAME] $error_msg"
-            cat "$resp_file"
-            exit 1
-          fi
-
-          echo "[$NAME] JSON check passed: .result.networkId == $NETWORK_ID"
-
-      - name: Upload endpoint report
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: rpc-healthcheck-${{ matrix.name }}
-          path: ${{ runner.temp }}/networkinfo_report_${{ matrix.name }}.json
-          if-no-files-found: error
-
   check-rootchain:
     name: Check ${{ matrix.name }} root chain last block time
     if: ${{ github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
@@ -157,7 +79,7 @@ jobs:
 
             if [[ "$since_last_block" -eq 0 || "$since_last_block" -gt 600 ]]; then
               result="failure"
-              error_msg="Last root block was ${since_last_block}s ago (threshold: 600s), height: ${root_height}"
+              error_msg="${since_last_block}s since last block"
             fi
           fi
 
@@ -192,15 +114,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
-      - check-networkinfo
       - check-rootchain
     if: ${{ always() && github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
 
     steps:
-      - name: Download endpoint reports
+      - name: Download reports
         uses: actions/download-artifact@v4
         with:
-          pattern: rpc-healthcheck-*
+          pattern: rpc-healthcheck-rootchain-*
           merge-multiple: true
           path: ${{ runner.temp }}/rpc-healthcheck
 
@@ -210,7 +131,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
-          CHECK_RESULT: ${{ needs.check-networkinfo.result }}
           ROOTCHAIN_CHECK_RESULT: ${{ needs.check-rootchain.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -219,29 +139,22 @@ jobs:
           overall="OK"
           report_dir="${RUNNER_TEMP}/rpc-healthcheck"
 
-          table_rows_with_error=''
-          table_rows_no_error=''
-          html_rows_with_error=''
-          html_rows_no_error=''
+          table_rows=''
+          html_rows=''
 
-          # --- Root chain checks ---
-          rootchain_row_text=''
-          rootchain_row_html=''
           shopt -s nullglob
-          rootchain_report_files=("$report_dir"/rootchain_report_*.json)
-          if [[ ${#rootchain_report_files[@]} -eq 0 ]]; then
-            if [[ "$ROOTCHAIN_CHECK_RESULT" != "success" && "$ROOTCHAIN_CHECK_RESULT" != "skipped" ]]; then
-              overall="FAILED"
-              send=true
-              rootchain_row_text="| Root Chain | - | ❌ | missing rootchain report artifact | |\n"
-              rootchain_row_html="<tr><td>Root Chain</td><td>-</td><td>❌</td><td>missing rootchain report artifact</td><td></td></tr>"
-            fi
+          report_files=("$report_dir"/rootchain_report_*.json)
+          if [[ ${#report_files[@]} -eq 0 ]]; then
+            overall="FAILED"
+            send=true
+            table_rows='| unknown | unknown | ❌ | - | missing rootchain report artifact |\n'
+            html_rows='<tr><td>unknown</td><td>unknown</td><td>❌</td><td>-</td><td>missing rootchain report artifact</td></tr>'
           else
-            for f in "${rootchain_report_files[@]}"; do
+            for f in "${report_files[@]}"; do
               rc_name="$(jq -r '.name' "$f")"
+              rc_rpc_url="$(jq -r '.rpc_url' "$f")"
               rc_result="$(jq -r '.result' "$f")"
               rc_height="$(jq -r '.root_height' "$f")"
-              rc_since="$(jq -r '.since_last_block' "$f")"
               rc_error="$(jq -r '.error' "$f")"
               if [[ "$rc_result" != "success" ]]; then
                 overall="FAILED"
@@ -252,65 +165,23 @@ jobs:
                 rc_icon="✅"
                 rc_error="-"
               fi
+              rc_rpc_url_esc="${rc_rpc_url//|/\\|}"
               rc_error_esc="${rc_error//|/\\|}"
-              rootchain_row_text+="| ${rc_name} | H:${rc_height} | ${rc_icon} | ${rc_since}s since last block | ${rc_error_esc} |\n"
-              rootchain_row_html+="<tr><td>${rc_name//&/&amp;}</td><td>H:${rc_height}</td><td>${rc_icon}</td><td>${rc_since}s since last block</td><td>${rc_error//&/&amp;}</td></tr>"
+              table_rows+="| ${rc_name} | ${rc_rpc_url_esc} | ${rc_icon} | ${rc_height} | ${rc_error_esc} |\n"
+              rc_name_html="${rc_name//&/&amp;}"
+              rc_name_html="${rc_name_html//</&lt;}"
+              rc_name_html="${rc_name_html//>/&gt;}"
+              rc_rpc_url_html="${rc_rpc_url//&/&amp;}"
+              rc_rpc_url_html="${rc_rpc_url_html//</&lt;}"
+              rc_rpc_url_html="${rc_rpc_url_html//>/&gt;}"
+              rc_error_html="${rc_error//&/&amp;}"
+              rc_error_html="${rc_error_html//</&lt;}"
+              rc_error_html="${rc_error_html//>/&gt;}"
+              html_rows+="<tr><td>${rc_name_html}</td><td>${rc_rpc_url_html}</td><td>${rc_icon}</td><td>${rc_height}</td><td>${rc_error_html}</td></tr>"
             done
           fi
 
-          # --- Endpoint checks ---
-          shopt -s nullglob
-          report_files=("$report_dir"/networkinfo_report_*.json)
-          if [[ ${#report_files[@]} -eq 0 ]]; then
-            overall="FAILED"
-            send=true
-            table_rows_with_error='| unknown | unknown | ❌ | missing endpoint report artifact |\n'
-            html_rows_with_error='<tr><td>unknown</td><td>unknown</td><td>❌</td><td>missing endpoint report artifact</td></tr>'
-          else
-            for f in "${report_files[@]}"; do
-              name="$(jq -r '.name' "$f")"
-              rpc_url="$(jq -r '.rpc_url' "$f")"
-              result="$(jq -r '.result' "$f")"
-              error="$(jq -r '.error' "$f")"
-
-              if [[ "$result" != "success" ]]; then
-                overall="FAILED"
-                send=true
-                if [[ -z "$error" ]]; then
-                  error="unknown error"
-                fi
-              else
-                if [[ -z "$error" ]]; then
-                  error="-"
-                fi
-              fi
-
-              # Escape markdown table special chars
-              rpc_url="${rpc_url//|/\\|}"
-              error="${error//|/\\|}"
-              if [[ "$result" == "success" ]]; then
-                result_icon="✅"
-              else
-                result_icon="❌"
-              fi
-              table_rows_with_error+="| ${name} | ${rpc_url} | ${result_icon} | ${error} |\n"
-              table_rows_no_error+="| ${name} | ${rpc_url} | ${result_icon} |\n"
-
-              name_html="${name//&/&amp;}"
-              name_html="${name_html//</&lt;}"
-              name_html="${name_html//>/&gt;}"
-              rpc_url_html="${rpc_url//&/&amp;}"
-              rpc_url_html="${rpc_url_html//</&lt;}"
-              rpc_url_html="${rpc_url_html//>/&gt;}"
-              error_html="${error//&/&amp;}"
-              error_html="${error_html//</&lt;}"
-              error_html="${error_html//>/&gt;}"
-              html_rows_with_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_icon}</td><td>${error_html}</td></tr>"
-              html_rows_no_error+="<tr><td>${name_html}</td><td>${rpc_url_html}</td><td>${result_icon}</td></tr>"
-            done
-          fi
-
-          if [[ "$CHECK_RESULT" != "success" ]]; then
+          if [[ "$ROOTCHAIN_CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
             send=true
           else
@@ -323,6 +194,7 @@ jobs:
               fi
             fi
           fi
+
           if [[ "$overall" == "OK" ]]; then
             subject="✅ QuarkChain RPC Healthcheck OK"
           else
@@ -338,29 +210,17 @@ jobs:
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
           echo >> "$GITHUB_OUTPUT"
-          echo "| check | detail | result | error |" >> "$GITHUB_OUTPUT"
-          echo "|---|---|---|---|" >> "$GITHUB_OUTPUT"
-          if [[ -n "$rootchain_row_text" ]]; then
-            printf "%b" "$rootchain_row_text" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ "$overall" == "OK" ]]; then
-            printf "%b" "$table_rows_no_error" >> "$GITHUB_OUTPUT"
-          else
-            printf "%b" "$table_rows_with_error" >> "$GITHUB_OUTPUT"
-          fi
+          echo "| name | rpc_url | result | root_height | error |" >> "$GITHUB_OUTPUT"
+          echo "|---|---|---|---|---|" >> "$GITHUB_OUTPUT"
+          printf "%b" "$table_rows" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "html_body<<EOF" >> "$GITHUB_OUTPUT"
           echo "<p>QuarkChain RPC Healthcheck: <b>${overall}</b></p>" >> "$GITHUB_OUTPUT"
           echo "<p>Event: ${EVENT_NAME}<br/>Schedule: ${EVENT_SCHEDULE:-N/A}<br/>Run: <a href=\"${RUN_URL}\">${RUN_URL}</a></p>" >> "$GITHUB_OUTPUT"
           echo "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">" >> "$GITHUB_OUTPUT"
-          echo "<thead><tr><th>check</th><th>detail</th><th>result</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
-          rootchain_tbody="${rootchain_row_html}"
-          if [[ "$overall" == "OK" ]]; then
-            echo "<tbody>${rootchain_tbody}${html_rows_no_error}</tbody>" >> "$GITHUB_OUTPUT"
-          else
-            echo "<tbody>${rootchain_tbody}${html_rows_with_error}</tbody>" >> "$GITHUB_OUTPUT"
-          fi
+          echo "<thead><tr><th>name</th><th>rpc_url</th><th>result</th><th>root_height</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
+          echo "<tbody>${html_rows}</tbody>" >> "$GITHUB_OUTPUT"
           echo "</table>" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
