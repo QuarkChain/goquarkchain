@@ -105,26 +105,28 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		return nil, ErrMsg("AddBlockListForSync")
 	}
 
+	chainTip := shard.MinorBlockChain.CurrentBlock().NumberU64()
 	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
-		committed := shard.MinorBlockChain.HasBlock(hash)
-		if committed {
-			// Check whether this committed block is actually on the canonical chain.
-			// If a stale fork block was committed previously, its marker exists but the
-			// canonical chain has a different block at that height. Force re-download so
-			// the correct chain block gets inserted.
+		skip := false
+		if shard.MinorBlockChain.HasBlock(hash) {
+			// Only skip if the block is confirmed on the canonical chain.
+			// A committed block whose height is above the current chain tip is a stale
+			// fork marker — force re-download so the correct block gets inserted.
 			b := shard.MinorBlockChain.GetMinorBlock(hash)
-			if b != nil {
+			if b != nil && b.NumberU64() <= chainTip {
 				canonical := shard.MinorBlockChain.GetBlockByNumber(b.NumberU64())
-				if canonical == nil || canonical.Hash() != hash {
-					log.Warn("AddBlockListForSync filter: committed block not on canonical chain, force re-download",
-						"branch", branch, "number", b.NumberU64(), "hash", hash.Hex())
-					committed = false
+				if canonical != nil && canonical.Hash() == hash {
+					skip = true
 				}
 			}
+			if !skip {
+				log.Warn("AddBlockListForSync filter: stale committed block, force re-download",
+					"branch", branch, "hash", hash.Hex(), "chainTip", chainTip)
+			}
 		}
-		log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "committed", committed)
-		if !committed {
+		log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "skip", skip, "chainTip", chainTip)
+		if !skip {
 			hashList = append(hashList, hash)
 		}
 	}
