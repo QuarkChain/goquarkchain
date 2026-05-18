@@ -498,14 +498,19 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
 		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
 	// If currentBlock is ahead of the confirmed tip (e.g. after --rollback_root),
-	// rewind the minor chain to remove orphaned blocks and their CommitMinorBlock markers.
-	// Without this, SlaveBackend.AddBlockListForSync would skip these blocks via HasBlock()
-	// and fail to download their predecessors, causing "unknown ancestor" errors.
+	// delete CommitMinorBlock markers for blocks above the confirmed tip.
+	// These orphaned markers would cause SlaveBackend.AddBlockListForSync to skip
+	// those blocks via HasBlock(), leaving a gap that triggers "unknown ancestor".
+	// We do NOT call setHead here because setHead resets currentBlock to genesis
+	// when the target block's state trie is missing (which is the normal case after
+	// a crash), making recovery impossible.
 	if m.CurrentBlock().NumberU64() > block.NumberU64() {
-		log.Warn(m.logInfo+" rewinding minor chain to confirmed tip",
-			"from", m.CurrentBlock().NumberU64(), "to", block.NumberU64())
-		if err := m.setHead(block.NumberU64()); err != nil {
-			return err
+		log.Warn(m.logInfo+" clearing orphaned CommitMinorBlock markers above confirmed tip",
+			"currentBlock", m.CurrentBlock().NumberU64(), "confirmedTip", block.NumberU64())
+		cur := m.CurrentBlock()
+		for cur != nil && cur.NumberU64() > block.NumberU64() {
+			rawdb.DeleteMinorBlockCommitStatus(m.db, cur.Hash())
+			cur = m.GetMinorBlock(cur.ParentHash())
 		}
 	}
 	var err error

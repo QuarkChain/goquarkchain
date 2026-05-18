@@ -449,8 +449,16 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			return err
 		}
 		if len(xshardLst) != 1 {
-			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			continue
+			// Block was already committed (e.g. confirmed by a previous root block).
+			if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+				continue
+			}
+			// InsertChainForDeposits returned no xshard list without error, which
+			// can happen when the block is inserted via the sidechain path (state
+			// not available for parent). Treat as a transient failure so the caller
+			// retries rather than silently dropping the block.
+			log.Warn(s.logInfo+" InsertChainForDeposits returned empty xshard list, will retry", "number", block.NumberU64(), "hash", block.Hash().String())
+			return fmt.Errorf("InsertChainForDeposits returned empty xshard list for block %d", block.NumberU64())
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
