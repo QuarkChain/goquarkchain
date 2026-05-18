@@ -497,6 +497,17 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	}
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
 		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
+	// If currentBlock is ahead of the confirmed tip (e.g. after --rollback_root),
+	// rewind the minor chain to remove orphaned blocks and their CommitMinorBlock markers.
+	// Without this, SlaveBackend.AddBlockListForSync would skip these blocks via HasBlock()
+	// and fail to download their predecessors, causing "unknown ancestor" errors.
+	if m.CurrentBlock().NumberU64() > block.NumberU64() {
+		log.Warn(m.logInfo+" rewinding minor chain to confirmed tip",
+			"from", m.CurrentBlock().NumberU64(), "to", block.NumberU64())
+		if err := m.setHead(block.NumberU64()); err != nil {
+			return err
+		}
+	}
 	var err error
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
