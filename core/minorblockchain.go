@@ -142,6 +142,7 @@ type MinorBlockChain struct {
 	lastDereferenceRoot      common.Hash
 	confirmedHeaderTip       *types.MinorBlock
 	initialized              bool
+	ready                    bool // set to true after InitFromRootBlock completes successfully
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	minRecordMinorBlock      uint64

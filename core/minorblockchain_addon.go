@@ -537,7 +537,14 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	err = m.reWriteBlockIndexTo(nil, block)
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
+	if err == nil {
+		m.ready = true
+	}
 	return err
+}
+
+func (m *MinorBlockChain) IsInitialized() bool {
+	return m.ready
 }
 
 func reverseList(block []types.IBlock) {

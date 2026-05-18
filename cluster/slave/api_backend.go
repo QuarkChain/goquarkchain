@@ -107,24 +107,11 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
-		if shard.MinorBlockChain.HasBlock(hash) {
-			// Verify the committed block is actually on the canonical chain.
-			// Skip only when the canonical block at that height matches this hash.
-			// In all other cases (block body missing, height above tip, canonical
-			// mismatch) force re-download so stale fork markers don't block sync.
-			b := shard.MinorBlockChain.GetMinorBlock(hash)
-			if b != nil {
-				canonical := shard.MinorBlockChain.GetBlockByNumber(b.NumberU64())
-				if canonical != nil && canonical.Hash() == hash {
-					log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "skip", true)
-					continue
-				}
-			}
-			log.Warn("AddBlockListForSync filter: stale committed block, force re-download",
-				"branch", branch, "hash", hash.Hex())
+		committed := shard.MinorBlockChain.HasBlock(hash)
+		log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "committed", committed)
+		if !committed {
+			hashList = append(hashList, hash)
 		}
-		log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "skip", false)
-		hashList = append(hashList, hash)
 	}
 	log.Info("AddBlockListForSync after filter", "branch", branch, "total", len(mHashList), "toDownload", len(hashList))
 
