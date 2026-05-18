@@ -326,14 +326,10 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 		m.currentBlock.Store(m.GetBlock(block.ParentHash()))
 	}
 	batch.Write()
-	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
-			// Rewound state missing, rolled back to before pivot, reset to genesis
-			m.currentBlock.Store(m.genesisBlock)
-		}
-	}
-
-	// If either blocks reached nil, reset to the genesis state
+	// Do NOT reset currentBlock to genesis when state is missing here.
+	// InitFromRootBlock calls reRunBlockWithState to rebuild missing state before
+	// calling setHead; resetting to genesis would undo that work and leave the
+	// chain stuck at height 0. The missing-state case is handled by the caller.
 	if currentBlock := m.CurrentBlock(); currentBlock == nil {
 		m.currentBlock.Store(m.genesisBlock)
 	}

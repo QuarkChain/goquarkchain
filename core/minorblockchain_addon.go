@@ -496,7 +496,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		return ErrMinorBlockIsNil
 	}
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
-		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
+		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number,
+		"currentBlock", m.CurrentBlock().NumberU64())
 	// If currentBlock is ahead of the confirmed tip (e.g. after --rollback_root),
 	// delete CommitMinorBlock markers for blocks above the confirmed tip.
 	// These orphaned markers would cause SlaveBackend.AddBlockListForSync to skip
@@ -529,12 +530,15 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
+	log.Info(m.logInfo+" before StateAt currentEvmState", "currentBlock", m.CurrentBlock().NumberU64())
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
 		log.Error("unexpected err:should have state here", "err", err)
 		return err
 	}
+	log.Info(m.logInfo+" before reWriteBlockIndexTo", "currentBlock", m.CurrentBlock().NumberU64(), "targetBlock", block.NumberU64())
 	err = m.reWriteBlockIndexTo(nil, block)
+	log.Info(m.logInfo+" after reWriteBlockIndexTo", "currentBlock", m.CurrentBlock().NumberU64(), "targetBlock", block.NumberU64(), "err", err)
 	// reWriteBlockIndexTo may call setHead internally, which resets currentBlock
 	// to genesis when the block's state is missing. We already rebuilt the state
 	// via reRunBlockWithState above, so forcibly restore the correct tip here.
