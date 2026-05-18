@@ -575,6 +575,14 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 	for {
 		if _, err := m.StateAt(block.Meta().Root); err == nil {
 			log.Info("reRunBlockWithState blockchain to past state", "number", block.Number(), "hash", block.Hash().String())
+			// The orphaned-marker cleanup in InitFromRootBlock may have deleted this
+			// block's commit marker. InsertChain validates each block's parent via
+			// HasBlock(), so the ancestor we found must be marked committed.
+			if !m.IsMinorBlockCommittedByHash(block.Hash()) {
+				log.Warn("reRunBlockWithState re-adding missing commit marker for state ancestor",
+					"number", block.Number(), "hash", block.Hash().String())
+				m.CommitMinorBlockByHash(block.Hash())
+			}
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)
