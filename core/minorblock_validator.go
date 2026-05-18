@@ -70,7 +70,14 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 	}
 	header := block.Header()
 	if err := v.engine.VerifyHeader(v.bc, header, true); err != nil {
-		log.Error(v.logInfo, "verify header err", err)
+		log.Error(v.logInfo, "verify header err", err,
+			"block", block.NumberU64(),
+			"hash", block.Hash().Hex(),
+			"parentHash", block.ParentHash().Hex(),
+			"prevRootHash", block.PrevRootBlockHash().Hex(),
+			"chainTip", v.bc.CurrentHeader().NumberU64(),
+			"chainTipHash", v.bc.CurrentHeader().Hash().Hex(),
+		)
 		return err
 	}
 

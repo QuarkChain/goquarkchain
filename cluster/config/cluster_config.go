@@ -41,6 +41,7 @@ type ClusterConfig struct {
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
 	NoPruning                bool
+	RollbackRootBlock        int
 }
 
 func NewClusterConfig() *ClusterConfig {
@@ -65,6 +66,7 @@ func NewClusterConfig() *ClusterConfig {
 		CheckDBRBlockFrom:        -1,
 		CheckDBRBlockTo:          0,
 		CheckDBRBlockBatch:       10,
+		RollbackRootBlock:        -1,
 	}
 
 	fullShardIds := ret.Quarkchain.GetGenesisShardIds()

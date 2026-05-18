@@ -150,6 +150,11 @@ var (
 		Usage: "the batch size of root block check at the same time",
 		Value: 0,
 	}
+	RollbackRootBlockFlag = cli.IntFlag{
+		Name:  "rollback_root",
+		Usage: "rollback root chain to this height before starting (e.g. --rollback_root 12345)",
+		Value: -1,
+	}
 
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
@@ -467,6 +472,9 @@ func setCheckDBConfig(ctx *cli.Context, clstrCfg *config.ClusterConfig) {
 	}
 	if ctx.GlobalIsSet(CheckDBRBlockBatchFlag.Name) {
 		clstrCfg.CheckDBRBlockBatch = ctx.GlobalInt(CheckDBRBlockBatchFlag.Name)
+	}
+	if ctx.GlobalIsSet(RollbackRootBlockFlag.Name) {
+		clstrCfg.RollbackRootBlock = ctx.GlobalInt(RollbackRootBlockFlag.Name)
 	}
 }
 
