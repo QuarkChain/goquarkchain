@@ -122,16 +122,6 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if cfg.RollbackRootBlock >= 0 {
-		target := uint64(cfg.RollbackRootBlock)
-		curr := mstr.rootBlockChain.CurrentBlock().NumberU64()
-		log.Warn("Rolling back root chain", "from", curr, "to", target)
-		if err = mstr.rootBlockChain.SetHead(target); err != nil {
-			return nil, fmt.Errorf("rollback root chain to %d failed: %v", target, err)
-		}
-		log.Warn("Root chain rolled back", "newTip", mstr.rootBlockChain.CurrentBlock().NumberU64())
-	}
-
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	mstr.rootBlockChain.SetBroadcastRootBlockFunc(mstr.AddRootBlock)
 	mstr.rootBlockChain.SetRootChainStakesFunc(mstr.GetRootChainStakes)

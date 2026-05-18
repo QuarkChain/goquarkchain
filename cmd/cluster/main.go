@@ -45,7 +45,6 @@ var (
 		utils.CheckDBRBlockFromFlag,
 		utils.CheckDBRBlockToFlag,
 		utils.CheckDBRBlockBatchFlag,
-		utils.RollbackRootBlockFlag,
 
 		utils.EnableTransactionHistoryFlag,
 		utils.MaxPeersFlag,
