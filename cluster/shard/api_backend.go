@@ -439,7 +439,10 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Branch().Value != s.branch.Value {
 			continue
 		}
-		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+		commitStatus := s.getBlockCommitStatusByHash(blockHash)
+		log.Info(s.logInfo+" AddBlockListForSync block", "number", block.NumberU64(), "hash", blockHash.Hex(), "parentHash", block.ParentHash().Hex(), "commitStatus", commitStatus, "chainTip", s.MinorBlockChain.CurrentBlock().NumberU64())
+		if commitStatus == BLOCK_COMMITTED {
+			log.Info(s.logInfo+" AddBlockListForSync skip committed", "number", block.NumberU64())
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
@@ -448,9 +451,11 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
 		}
+		log.Info(s.logInfo+" AddBlockListForSync InsertChainForDeposits result", "number", block.NumberU64(), "xshardLen", len(xshardLst))
 		if len(xshardLst) != 1 {
 			// Block was already committed (e.g. confirmed by a previous root block).
 			if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+				log.Info(s.logInfo+" AddBlockListForSync skip committed after insert", "number", block.NumberU64())
 				continue
 			}
 			// InsertChainForDeposits returned no xshard list without error, which
