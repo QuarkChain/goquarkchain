@@ -1356,6 +1356,20 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	)
 
+	// Fast path: when newBlock is strictly ahead of oldBlock and its canonical hash
+	// already matches in the DB, the entire intermediate chain is already committed.
+	// This avoids an O(N) backward walk that would occur when currentBlock was
+	// previously reset to genesis by the old genesis-reset bug in setHead.
+	if newBlock.NumberU64() > oldBlock.NumberU64() {
+		canonicalHash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, newBlock.NumberU64())
+		if canonicalHash == newBlock.Hash() {
+			log.Info(m.logInfo+" reorg fast-path: newBlock is already canonical ahead of oldBlock",
+				"old", oldBlock.NumberU64(), "new", newBlockNumber)
+			m.insert(newBlock.(*types.MinorBlock))
+			return nil
+		}
+	}
+
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
