@@ -442,8 +442,15 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		commitStatus := s.getBlockCommitStatusByHash(blockHash)
 		log.Info(s.logInfo+" AddBlockListForSync block", "number", block.NumberU64(), "hash", blockHash.Hex(), "parentHash", block.ParentHash().Hex(), "commitStatus", commitStatus, "chainTip", s.MinorBlockChain.CurrentBlock().NumberU64())
 		if commitStatus == BLOCK_COMMITTED {
-			log.Info(s.logInfo+" AddBlockListForSync skip committed", "number", block.NumberU64())
-			continue
+			// Only skip when this hash is the canonical block at that height.
+			// A stale fork block may carry COMMITTED status from a previous sync;
+			// re-inserting it triggers a reorg to the correct chain.
+			canonical := s.MinorBlockChain.GetBlockByNumber(block.NumberU64())
+			if canonical != nil && canonical.Hash() == blockHash {
+				log.Info(s.logInfo+" AddBlockListForSync skip committed", "number", block.NumberU64())
+				continue
+			}
+			log.Warn(s.logInfo+" AddBlockListForSync committed but not canonical, re-inserting", "number", block.NumberU64(), "hash", blockHash.Hex())
 		}
 		//TODO:support BLOCK_COMMITTING
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
