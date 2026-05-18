@@ -535,6 +535,15 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		return err
 	}
 	err = m.reWriteBlockIndexTo(nil, block)
+	// reWriteBlockIndexTo may call setHead internally, which resets currentBlock
+	// to genesis when the block's state is missing. We already rebuilt the state
+	// via reRunBlockWithState above, so forcibly restore the correct tip here.
+	if m.CurrentBlock().NumberU64() != block.NumberU64() {
+		log.Warn(m.logInfo+" restoring currentBlock after reWriteBlockIndexTo reset it",
+			"got", m.CurrentBlock().NumberU64(), "want", block.NumberU64())
+		m.currentBlock.Store(block)
+		rawdb.WriteHeadBlockHash(m.db, block.Hash())
+	}
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
 	if err == nil {
