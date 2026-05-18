@@ -432,6 +432,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 
 	// Guard against being called before InitFromRootBlock completes.
 	// CurrentBlock() returns genesis (height 0) when the shard is not yet ready.
+	log.Info(s.logInfo+" AddBlockListForSync ready check", "isInitialized", s.MinorBlockChain.IsInitialized(), "chainTip", s.MinorBlockChain.CurrentBlock().NumberU64())
 	if !s.MinorBlockChain.IsInitialized() {
 		log.Warn(s.logInfo+" AddBlockListForSync called before shard initialized, retry later")
 		return fmt.Errorf("shard %d not initialized yet", s.branch.Value)
