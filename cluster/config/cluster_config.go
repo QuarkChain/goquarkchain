@@ -168,6 +168,7 @@ type QuarkChainConfig struct {
 	EnableNonReservedNativeTokenTimestamp uint64      `json:"ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP"`
 	EnableGeneralNativeTokenTimestamp     uint64      `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
 	EnablePoswStakingDecayTimestamp       uint64      `json:"ENABLE_POSW_STAKING_DECAY_TIMESTAMP"`
+	EnableRootPoswStakingDecayTimestamp   uint64      `json:"ENABLE_ROOT_POSW_STAKING_DECAY_TIMESTAMP"`
 	EnableEIP155SignerTimestamp           uint64      `json:"ENABLE_EIP155_SIGNER_TIMESTAMP"`
 	BaseEthChainID                        uint32      `json:"BASE_ETH_CHAIN_ID"`
 	DisablePowCheck                       bool        `json:"DISABLE_POW_CHECK"`
