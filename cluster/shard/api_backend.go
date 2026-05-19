@@ -456,6 +456,17 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			return err
 		}
 		if len(xshardLst) != 1 {
+			// Two cases reach here:
+			// 1. ErrPrunedAncestor → insertSidechain: block was stored without state
+			//    execution; CommitMinorBlockByHash was already called inside insertSidechain,
+			//    so the block is now COMMITTED.  Continue so the rest of the batch is
+			//    processed; the xshard gap is acceptable because this path only occurs when
+			//    parent state is missing, which should not happen after proper crash recovery.
+			// 2. procInterrupt (chain shutting down): block was not committed.
+			//    Return an error so the caller retries after the node is ready.
+			if s.getBlockCommitStatusByHash(blockHash) != BLOCK_COMMITTED {
+				return fmt.Errorf("InsertChainForDeposits returned empty xshard list for non-committed block %d", block.NumberU64())
+			}
 			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 			continue
 		}
