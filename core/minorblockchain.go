@@ -1371,8 +1371,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if newBlock.NumberU64() > oldBlock.NumberU64() {
 		canonicalHash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, newBlock.NumberU64())
 		if canonicalHash == newBlock.Hash() {
-			log.Info(m.logInfo+" reorg fast-path: newBlock is already canonical ahead of oldBlock",
-				"old", oldBlock.NumberU64(), "new", newBlockNumber)
 			m.insert(newBlock.(*types.MinorBlock))
 			return nil
 		}

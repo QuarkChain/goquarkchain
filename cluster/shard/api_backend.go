@@ -431,10 +431,8 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	}
 
 	// Guard against being called before InitFromRootBlock completes.
-	// CurrentBlock() returns genesis (height 0) when the shard is not yet ready.
-	log.Info(s.logInfo+" AddBlockListForSync ready check", "isInitialized", s.MinorBlockChain.IsInitialized(), "chainTip", s.MinorBlockChain.CurrentBlock().NumberU64())
 	if !s.MinorBlockChain.IsInitialized() {
-		log.Warn(s.logInfo+" AddBlockListForSync called before shard initialized, retry later")
+		log.Warn(s.logInfo + " AddBlockListForSync called before shard initialized, retry later")
 		return fmt.Errorf("shard %d not initialized yet", s.branch.Value)
 	}
 
@@ -447,18 +445,9 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Branch().Value != s.branch.Value {
 			continue
 		}
-		commitStatus := s.getBlockCommitStatusByHash(blockHash)
-		log.Info(s.logInfo+" AddBlockListForSync block", "number", block.NumberU64(), "hash", blockHash.Hex(), "parentHash", block.ParentHash().Hex(), "commitStatus", commitStatus, "chainTip", s.MinorBlockChain.CurrentBlock().NumberU64())
-		if commitStatus == BLOCK_COMMITTED {
-			// Only skip when this hash is the canonical block at that height.
-			// A stale fork block may carry COMMITTED status from a previous sync;
-			// re-inserting it triggers a reorg to the correct chain.
-			canonical := s.MinorBlockChain.GetBlockByNumber(block.NumberU64())
-			if canonical != nil && canonical.Hash() == blockHash {
-				log.Info(s.logInfo+" AddBlockListForSync skip committed", "number", block.NumberU64())
-				continue
-			}
-			log.Warn(s.logInfo+" AddBlockListForSync committed but not canonical, re-inserting", "number", block.NumberU64(), "hash", blockHash.Hex())
+		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+			log.Info(s.logInfo+" AddBlockListForSync skip committed", "number", block.NumberU64(), "hash", block.Hash().String())
+			continue
 		}
 		//TODO:support BLOCK_COMMITTING
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
@@ -466,19 +455,9 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
 		}
-		log.Info(s.logInfo+" AddBlockListForSync InsertChainForDeposits result", "number", block.NumberU64(), "xshardLen", len(xshardLst))
 		if len(xshardLst) != 1 {
-			// Block was already committed (e.g. confirmed by a previous root block).
-			if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
-				log.Info(s.logInfo+" AddBlockListForSync skip committed after insert", "number", block.NumberU64())
-				continue
-			}
-			// InsertChainForDeposits returned no xshard list without error, which
-			// can happen when the block is inserted via the sidechain path (state
-			// not available for parent). Treat as a transient failure so the caller
-			// retries rather than silently dropping the block.
-			log.Warn(s.logInfo+" InsertChainForDeposits returned empty xshard list, will retry", "number", block.NumberU64(), "hash", block.Hash().String())
-			return fmt.Errorf("InsertChainForDeposits returned empty xshard list for block %d", block.NumberU64())
+			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			continue
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())

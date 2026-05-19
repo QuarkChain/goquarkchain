@@ -149,13 +149,6 @@ func (c *CommonEngine) VerifyHeader(
 	*/
 	parent := chain.GetBlock(header.GetParentHash())
 	if qkccommon.IsNil(parent) {
-		log.Warn("VerifyHeader unknown ancestor",
-			"block", header.NumberU64(),
-			"blockHash", header.Hash().Hex(),
-			"parentHash", header.GetParentHash().Hex(),
-			"chainTip", chain.CurrentHeader().NumberU64(),
-			"chainTipHash", chain.CurrentHeader().Hash().Hex(),
-		)
 		return ErrUnknownAncestor
 	}
 	if parent.NumberU64() != number-1 {

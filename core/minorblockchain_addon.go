@@ -498,22 +498,6 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
 		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number,
 		"currentBlock", m.CurrentBlock().NumberU64())
-	// If currentBlock is ahead of the confirmed tip (e.g. after --rollback_root),
-	// delete CommitMinorBlock markers for blocks above the confirmed tip.
-	// These orphaned markers would cause SlaveBackend.AddBlockListForSync to skip
-	// those blocks via HasBlock(), leaving a gap that triggers "unknown ancestor".
-	// We do NOT call setHead here because setHead resets currentBlock to genesis
-	// when the target block's state trie is missing (which is the normal case after
-	// a crash), making recovery impossible.
-	if m.CurrentBlock().NumberU64() > block.NumberU64() {
-		log.Warn(m.logInfo+" clearing orphaned CommitMinorBlock markers above confirmed tip",
-			"currentBlock", m.CurrentBlock().NumberU64(), "confirmedTip", block.NumberU64())
-		cur := m.CurrentBlock()
-		for cur != nil && cur.NumberU64() > block.NumberU64() {
-			rawdb.DeleteMinorBlockCommitStatus(m.db, cur.Hash())
-			cur = m.GetMinorBlock(cur.ParentHash())
-		}
-	}
 	var err error
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
@@ -530,24 +514,12 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	log.Info(m.logInfo+" before StateAt currentEvmState", "currentBlock", m.CurrentBlock().NumberU64())
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
 		log.Error("unexpected err:should have state here", "err", err)
 		return err
 	}
-	log.Info(m.logInfo+" before reWriteBlockIndexTo", "currentBlock", m.CurrentBlock().NumberU64(), "targetBlock", block.NumberU64())
 	err = m.reWriteBlockIndexTo(nil, block)
-	log.Info(m.logInfo+" after reWriteBlockIndexTo", "currentBlock", m.CurrentBlock().NumberU64(), "targetBlock", block.NumberU64(), "err", err)
-	// reWriteBlockIndexTo may call setHead internally, which resets currentBlock
-	// to genesis when the block's state is missing. We already rebuilt the state
-	// via reRunBlockWithState above, so forcibly restore the correct tip here.
-	if m.CurrentBlock().NumberU64() != block.NumberU64() {
-		log.Warn(m.logInfo+" restoring currentBlock after reWriteBlockIndexTo reset it",
-			"got", m.CurrentBlock().NumberU64(), "want", block.NumberU64())
-		m.currentBlock.Store(block)
-		rawdb.WriteHeadBlockHash(m.db, block.Hash())
-	}
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
 	if err == nil {
@@ -575,14 +547,6 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 	for {
 		if _, err := m.StateAt(block.Meta().Root); err == nil {
 			log.Info("reRunBlockWithState blockchain to past state", "number", block.Number(), "hash", block.Hash().String())
-			// The orphaned-marker cleanup in InitFromRootBlock may have deleted this
-			// block's commit marker. InsertChain validates each block's parent via
-			// HasBlock(), so the ancestor we found must be marked committed.
-			if !m.IsMinorBlockCommittedByHash(block.Hash()) {
-				log.Warn("reRunBlockWithState re-adding missing commit marker for state ancestor",
-					"number", block.Number(), "hash", block.Hash().String())
-				m.CommitMinorBlockByHash(block.Hash())
-			}
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)

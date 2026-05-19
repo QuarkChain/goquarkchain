@@ -75,8 +75,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 			"hash", block.Hash().Hex(),
 			"parentHash", block.ParentHash().Hex(),
 			"prevRootHash", block.PrevRootBlockHash().Hex(),
-			"chainTip", v.bc.CurrentHeader().NumberU64(),
-			"chainTipHash", v.bc.CurrentHeader().Hash().Hex(),
 		)
 		return err
 	}

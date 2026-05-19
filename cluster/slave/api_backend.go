@@ -98,13 +98,10 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
-		committed := shard.MinorBlockChain.HasBlock(hash)
-		log.Info("AddBlockListForSync filter", "branch", branch, "hash", hash.Hex(), "committed", committed)
-		if !committed {
+		if !shard.MinorBlockChain.HasBlock(hash) {
 			hashList = append(hashList, hash)
 		}
 	}
-	log.Info("AddBlockListForSync after filter", "branch", branch, "total", len(mHashList), "toDownload", len(hashList))
 
 	var (
 		BlockBatchSize = 100
@@ -118,18 +115,13 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 			tHashList = hashList
 			hLen = len(hashList)
 		}
-		log.Info("AddBlockListForSync downloading", "branch", branch, "count", hLen, "first", tHashList[0].Hex())
 		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
 		if err != nil {
 			log.Error("Failed to sync request from master", "branch", branch, "peer-id", peerId, "err", err)
 			return nil, err
 		}
-		log.Info("AddBlockListForSync downloaded", "branch", branch, "got", len(bList))
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
-		}
-		for _, b := range bList {
-			log.Info("AddBlockListForSync inserting", "branch", branch, "number", b.NumberU64(), "hash", b.Hash().Hex(), "parentHash", b.ParentHash().Hex())
 		}
 		if err := shard.AddBlockListForSync(bList); err != nil {
 			return nil, err
