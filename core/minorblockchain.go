@@ -435,12 +435,8 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		preHash := header.GetParentHash()
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
-			// Parent state is not available (e.g. missing trie node after a crash).
-			// Signal ErrPrunedAncestor so insertChain routes to insertSidechain,
-			// which rebuilds state for the missing ancestor chain before retrying.
-			log.Warn(m.logInfo, "PoSW: parent state unavailable, treating as pruned ancestor",
-				"block", header.NumberU64(), "err", err)
-			return nil, 0, ErrPrunedAncestor
+			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
+			return nil, 0, err
 		}
 		stakePreBlock := m.DecayByHeightAndTime(header.NumberU64(), header.GetTime())
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()), stakePreBlock)
