@@ -41,10 +41,6 @@ type ClusterConfig struct {
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
 	NoPruning                bool
-	RollbackRootBlock        int
-	// RollbackMinorBlock maps fullShardID -> target height for minor chain rollback.
-	// Set via --rollback_minor <fullShardID>:<height> (one-shot recovery tool).
-	RollbackMinorBlock       map[uint32]uint64
 }
 
 func NewClusterConfig() *ClusterConfig {
@@ -69,8 +65,6 @@ func NewClusterConfig() *ClusterConfig {
 		CheckDBRBlockFrom:        -1,
 		CheckDBRBlockTo:          0,
 		CheckDBRBlockBatch:       10,
-		RollbackRootBlock:        -1,
-		RollbackMinorBlock:       make(map[uint32]uint64),
 	}
 
 	fullShardIds := ret.Quarkchain.GetGenesisShardIds()

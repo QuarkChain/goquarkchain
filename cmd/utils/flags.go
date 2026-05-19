@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -151,17 +150,6 @@ var (
 		Usage: "the batch size of root block check at the same time",
 		Value: 0,
 	}
-	RollbackRootBlockFlag = cli.IntFlag{
-		Name:  "rollback_root",
-		Usage: "rollback root chain to this height before starting (e.g. --rollback_root 12345)",
-		Value: -1,
-	}
-	RollbackMinorBlockFlag = cli.StringFlag{
-		Name:  "rollback_minor",
-		Usage: "rollback a minor chain to the given height before starting, format: <fullShardID>:<height> (e.g. --rollback_minor 262145:22774770)",
-		Value: "",
-	}
-
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
@@ -478,25 +466,6 @@ func setCheckDBConfig(ctx *cli.Context, clstrCfg *config.ClusterConfig) {
 	}
 	if ctx.GlobalIsSet(CheckDBRBlockBatchFlag.Name) {
 		clstrCfg.CheckDBRBlockBatch = ctx.GlobalInt(CheckDBRBlockBatchFlag.Name)
-	}
-	if ctx.GlobalIsSet(RollbackRootBlockFlag.Name) {
-		clstrCfg.RollbackRootBlock = ctx.GlobalInt(RollbackRootBlockFlag.Name)
-	}
-	if ctx.GlobalIsSet(RollbackMinorBlockFlag.Name) {
-		val := ctx.GlobalString(RollbackMinorBlockFlag.Name)
-		parts := strings.SplitN(val, ":", 2)
-		if len(parts) != 2 {
-			Fatalf("--rollback_minor format must be <fullShardID>:<height>, got: %s", val)
-		}
-		shardID, err := strconv.ParseUint(parts[0], 10, 32)
-		if err != nil {
-			Fatalf("--rollback_minor invalid fullShardID %q: %v", parts[0], err)
-		}
-		height, err := strconv.ParseUint(parts[1], 10, 64)
-		if err != nil {
-			Fatalf("--rollback_minor invalid height %q: %v", parts[1], err)
-		}
-		clstrCfg.RollbackMinorBlock[uint32(shardID)] = height
 	}
 }
 

@@ -66,23 +66,14 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 		g.Go(func() error {
 			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
 			if rootBlock.Number() >= shardCfg.Genesis.RootHeight {
-				shd, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
+				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 				if err != nil {
 					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 					return err
 				}
-				s.addShard(id, shd)
-				if targetHeight, ok := s.clstrCfg.RollbackMinorBlock[id]; ok {
-					curr := shd.MinorBlockChain.CurrentBlock().NumberU64()
-					log.Warn("Rolling back minor chain", "fullShardID", id, "from", curr, "to", targetHeight)
-					if err := shd.MinorBlockChain.SetHead(targetHeight); err != nil {
-						shd.Stop()
-						return fmt.Errorf("rollback minor chain fullShardID=%d to %d failed: %v", id, targetHeight, err)
-					}
-					log.Warn("Minor chain rolled back", "fullShardID", id, "newTip", shd.MinorBlockChain.CurrentBlock().NumberU64())
-				}
-				if err = shd.InitFromRootBlock(rootBlock); err != nil {
-					shd.Stop()
+				s.addShard(id, shard)
+				if err = shard.InitFromRootBlock(rootBlock); err != nil {
+					shard.Stop()
 					return err
 				}
 			}

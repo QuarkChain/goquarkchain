@@ -542,8 +542,12 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 }
 
 // HasBlock checks if a block is fully present in the database or not.
+// A block is considered fully present only when both its commit marker and
+// its body exist in rawdb. A commit marker without a body can occur after a
+// crash (OOM/kill) where the marker persisted but the body was never flushed,
+// and would cause "unknown ancestor" errors in subsequent syncs.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return m.IsMinorBlockCommittedByHash(hash)
+	return m.IsMinorBlockCommittedByHash(hash) && rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
