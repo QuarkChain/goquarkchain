@@ -527,8 +527,12 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 // Note, this function assumes that the `mu` mutex is held!
 func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	// Add the block to the canonical chain number scheme and mark as the head
-	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
-	rawdb.WriteHeadBlockHash(m.db, block.Hash())
+	batch := m.db.NewBatch()
+	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
+	rawdb.WriteHeadBlockHash(batch, block.Hash())
+	if err := batch.Write(); err != nil {
+		log.Error(m.logInfo, "Failed to write head block hash to database", "hash", block.Hash(), "number", block.NumberU64(), "err", err)
+	}
 
 	m.currentBlock.Store(block)
 }
