@@ -7,11 +7,11 @@
 
 ---
 
-## 1. 问题现象
+## 1. Symptoms
 
-节点重启后，Shard 40001 出现以下两类错误，导致同步彻底卡住：
+After a node restart from a crash, Shard 40001 exhibited two successive errors.
 
-**现象 1：nil pointer panic（崩溃）**
+**Symptom 1: nil pointer panic (crash)**
 
 ```
 panic: runtime error: invalid memory address or nil pointer dereference
@@ -20,7 +20,10 @@ github.com/QuarkChain/goquarkchain/core/types.(*MinorBlock).NumberU64(...)
 github.com/QuarkChain/goquarkchain/consensus/consensus.go:153
 ```
 
-**现象 2：unknown ancestor 错误（同步卡死）**
+The node crashed repeatedly on startup. Once Symptom 1 was fixed (Bug 1), the
+panic was eliminated but the node immediately exhibited Symptom 2.
+
+**Symptom 2: unknown ancestor (sync stall)**
 
 ```
 WARN [05-18] VerifyHeader unknown ancestor
@@ -28,27 +31,54 @@ WARN [05-18] VerifyHeader unknown ancestor
   chainTip=22774779 chainTipHash=0x...
 ```
 
-节点 Shard 40001 的链尖停在 22774779，无法插入 22774781，同步长期卡住。
+Shard 40001's chain tip was stuck at 22774779. Block 22774781 could not be inserted, and sync remained stalled indefinitely.
+
+**Symptom 3: inconsistent LevelDB state after crash**
+
+After the crash, block 22774780's commit marker (`makeCommitMinorBlock` key) was
+present in LevelDB while its block body (`blockKey`) was absent. These are
+completely independent keys. The commit marker caused `HasBlock` to return
+`true`, so the block was filtered from the download list — but `GetBlock` then
+returned `nil` because the body was missing, producing the "unknown ancestor"
+error above.
+
+The exact mechanism that produced this state was not conclusively identified
+from code inspection. In the current codebase:
+- All insertion paths write the body before the marker; a crash during insertion
+  leaves body present and marker absent (harmless).
+- The deletion path in `setHead` uses a LevelDB batch, making body and marker
+  deletion atomic; OOM cannot cause partial batch application.
+
+The inconsistency is real — it was observed in production — but its root cause
+requires reviewing the original crash-time logs to confirm.
 
 ---
 
-## 2. 根因分析
+## 2. Root Cause Analysis
 
-本次事故由多个独立 Bug 叠加触发。
+The incident was triggered by five independent bugs compounding on each other.
 
-### Bug 1：typed-nil interface 导致 nil pointer panic
+### Bug 1: Typed-nil interface causes nil pointer panic
 
-**位置：** `consensus/consensus.go:153`（`VerifyHeader` 函数）
+**Location:** `consensus/consensus.go:153` (`VerifyHeader`)
 
-**原因：**
+**Cause:**
 
-`GetBlock()` 的返回类型是 `types.IBlock`（接口），当底层 `*MinorBlock` 为 nil 时，Go 接口本身并不为 nil——接口由 `(type, pointer)` 两个字段组成，type 字段有值，pointer 字段为 nil，因此 `parent == nil` 判断为 **false**，代码继续执行，在 `parent.NumberU64()` 处触发 nil pointer 解引用崩溃。
+`GetBlock()` returns `types.IBlock`, an interface. When the underlying
+`*MinorBlock` is nil, the interface value itself is **not** nil — a Go interface
+is a `(type, pointer)` pair, and the type field is populated even when the
+pointer is nil. As a result, `parent == nil` evaluates to `false`, execution
+continues, and `parent.NumberU64()` dereferences a nil pointer.
 
-**触发路径：**
+**Trigger path:**
 
-节点因异常关机（OOM / kill）重启后，最近 128 块的 state trie 尚未持久化（QuarkChain 非 archive 模式每 128 块刷盘一次）。`reRunBlockWithState` 在重建 state 时，需要回溯到最后一个有 state 的祖先块。这个过程中，`GetBlock()` 对某个尚未完整入库的块返回了包装了 nil 指针的接口值，触发 panic。
+After an unclean shutdown (OOM / kill -9), the state tries for the most recent
+128 blocks have not been flushed to disk (QuarkChain flushes every 128 blocks in
+non-archive mode). `reRunBlockWithState` walks backward to find the last
+persisted-state ancestor. During this walk, `GetBlock()` returns a typed-nil
+interface for a block whose body was never fully written, triggering the panic.
 
-**修复：**
+**Fix:**
 
 ```go
 // Before
@@ -63,65 +93,80 @@ if qkccommon.IsNil(parent) {
 }
 ```
 
-使用 `reflect` 穿透接口检查底层指针是否为 nil。
+`qkccommon.IsNil` uses `reflect` to inspect the underlying pointer through the
+interface.
 
 ---
 
-### Bug 2：批量同步循环提前退出（核心 Bug）
+### Bug 2: Sync batch loop exits early on a known block (core bug)
 
-**位置：** `cluster/shard/api_backend.go`，`ShardBackend.AddBlockListForSync`
+**Location:** `cluster/shard/api_backend.go`, `ShardBackend.AddBlockListForSync`
 
-**原因：**
+**Cause:**
 
-同步时，Master 将一批 Minor Block 列表发送给 Slave，Slave 的 `AddBlockListForSync` 逐块插入链。对于已知块（`InsertChainForDeposits` 返回空 xshard 列表），代码原本的意图是"跳过该块，继续处理后续块"，但实际写的是 `return nil`，导致**整个批次在遇到第一个已知块时立即退出**，后续的块全部被丢弃。
+During sync, the master sends a batch of minor blocks to the slave.
+`AddBlockListForSync` inserts them one by one. When `InsertChainForDeposits`
+returns an empty xshard list (block already known), the intended behaviour was
+to skip that block and continue with the rest. The code instead executed
+`return nil`, **exiting the entire function** on the first known block and
+silently discarding every subsequent block in the batch.
 
-**触发路径：**
+**Trigger path:**
 
-Root Block 3857740 包含 Shard 4 的三个 Minor Block：22774780、22774781、22774782。
+Root block 3857740 referenced three minor blocks for Shard 4: 22774780,
+22774781, and 22774782. The sync batch `[22774780, 22774781, 22774782]`
+arrived as follows:
 
-同步时发来的批次为 `[22774780, 22774781, 22774782]`：
+1. 22774780: already `BLOCK_COMMITTED` from the previous root block confirmation — skipped.
+2. 22774781: `InsertChainForDeposits` returns empty xshard (block already known) — triggers `return nil`.
+3. **`return nil` exits the entire loop.** 22774782 is never processed.
+4. On the next retry, the master sees the chain tip still at 22774779 — the cycle repeats indefinitely.
 
-1. 处理 22774780：该块已在上一个 root block confirm 时写入（BLOCK_COMMITTED），跳过。
-2. 处理 22774781：`InsertChainForDeposits` 调用返回空 xshard（块已知），触发 `return nil`。
-3. **`return nil` 退出整个循环**，22774782 被完全跳过。
-4. 下次同步重试时，Master 发现链尖仍停在 22774779，循环往复，永久卡住。
-
-**修复：**
+**Fix:**
 
 ```go
 // Before
 if len(xshardLst) != 1 {
     log.Warn(s.logInfo + " already have this block", ...)
-    return nil   // 错误：退出了整个函数
+    return nil   // wrong: exits the whole function
 }
 
 // After
 if len(xshardLst) != 1 {
+    // insertSidechain already committed this block (no xshard needed) — continue.
+    // If the block is not committed, the chain is shutting down — return error.
+    if s.getBlockCommitStatusByHash(blockHash) != BLOCK_COMMITTED {
+        return fmt.Errorf("InsertChainForDeposits returned empty xshard list for non-committed block %d", block.NumberU64())
+    }
     log.Warn(s.logInfo + " already have this block", ...)
-    continue     // 正确：跳过当前块，继续处理后续块
+    continue     // correct: skip this block, process the rest
 }
 ```
 
 ---
 
-### Bug 3：isSameRootChain 违反前置条件崩溃
+### Bug 3: `isSameRootChain` violates precondition of `isSameChain`
 
-**位置：** `core/minorblockchain_addon.go`，`isSameRootChain`
+**Location:** `core/minorblockchain_addon.go`, `isSameRootChain`
 
-**原因：**
+**Cause:**
 
-`isSameRootChain(long, short)` 调用 `isSameChain`，后者假设 `long.Number >= short.Number`。在某些恢复场景中（如 minor block header 引用的 `prevRootBlockHash` 高度高于当前 `rootTip`），`long.Number < short.Number` 的情况会出现，触发越界或逻辑错误：
+`isSameRootChain(long, short)` delegates to `isSameChain`, which assumes
+`long.Number >= short.Number`. In certain recovery scenarios — for example when
+a minor block header's `prevRootBlockHash` points to a root block taller than
+the current `rootTip` — this assumption is violated, producing a `log.Crit`
+and crashing the process:
 
 ```
 Crit isSameRootChain long.Number=3856710 short.Number=3857672
 ```
 
-**修复：**
+**Fix:**
 
 ```go
 func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock) bool {
     if long.NumberU64() < short.NumberU64() {
-        return false  // 新增：提前返回，避免违反 isSameChain 前置条件
+        return false  // added: guard against violating isSameChain's precondition
     }
     f := func(hash common.Hash) common.Hash { ... }
     return isSameChain(f, long, short)
@@ -130,164 +175,217 @@ func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock)
 
 ---
 
-### Bug 4：HasBlock 仅检查 commit marker，不验证 block body
+### Bug 4: `HasBlock` checks only the commit marker, not the block body
 
-**位置：** `core/minorblockchain.go`，`MinorBlockChain.HasBlock`
+**Location:** `core/minorblockchain.go`, `MinorBlockChain.HasBlock`
 
-**原因：**
+**Cause:**
 
-`HasBlock` 的实现只检查 `makeCommitMinorBlock` key（commit marker），不检查 `blockKey`（block body）：
+`HasBlock` checked only the `makeCommitMinorBlock` key (commit marker), not the
+`blockKey` (block body):
 
 ```go
-// 修复前
+// Before
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-    return m.IsMinorBlockCommittedByHash(hash)  // 只检查 marker
+    return m.IsMinorBlockCommittedByHash(hash)  // checks marker only
 }
 ```
 
-这两个是 **完全独立的 LevelDB key**。崩溃（OOM / kill）后，commit marker 可能因已持久化而残留，但 block body 可能因未刷盘而丢失。
+These are **completely independent LevelDB keys**. The "marker present, body
+absent" state was observed in production (see Symptom 3 above); `HasBlock` must
+defend against it regardless of the exact mechanism.
 
-**触发路径（Bug 1+2 修复后仍会出现）：**
+**Trigger path (persists after Bug 1+2+3 are fixed):**
 
-三个 bug 修复后节点重启，22774780 的 commit marker 残留，body 丢失：
+After the first three fixes, the node restarts. Block 22774780's commit marker
+survived the crash but its body is gone:
 
-1. `SlaveBackend.AddBlockListForSync` 调用 `HasBlock(22774780)` → true（marker 存在）
-2. 22774780 被过滤，仅下载 22774781、22774782
-3. 插入 22774781 时 `VerifyHeader` 调用 `GetBlock(22774780)` → nil（body 缺失）
-4. → `unknown ancestor`，永久循环
+1. `SlaveBackend.AddBlockListForSync` calls `HasBlock(22774780)` → `true` (marker present)
+2. 22774780 is filtered out; only 22774781 and 22774782 are downloaded
+3. Inserting 22774781 calls `GetBlock(22774780)` → `nil` (body missing)
+4. → `unknown ancestor` — permanent loop
 
-**修复：**
+**Fix:**
 
 ```go
-// 修复后：同时验证 commit marker 和 block body
+// After: require both commit marker and block body
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
     return m.IsMinorBlockCommittedByHash(hash) && rawdb.HasBlock(m.db, hash)
 }
 ```
 
-body 缺失时 `HasBlock` 返回 false，触发重新下载，body 恢复后同步恢复正常。
+When the body is absent, `HasBlock` returns `false`, triggering a re-download.
+Once the body is restored, sync resumes normally.
 
 ---
 
-### Bug 5：setHead 删除 block body，导致崩溃后无法恢复
+### Bug 5a: `setHead` deletes block bodies, breaking crash recovery
 
-**位置：** `core/minorblockchain.go`，`MinorBlockChain.setHead`
+**Location:** `core/minorblockchain.go`, `MinorBlockChain.setHead`
 
-**原因：**
+**Cause:**
 
-原始的 `setHead` 在回退链头时，对每个需要删除的块调用了 `rawdb.DeleteMinorBlock`——这会**同时删除 block body**：
+The original `setHead` called `rawdb.DeleteMinorBlock` while rewinding the
+chain, which **deleted block bodies**:
 
 ```go
-// 修复前
+// Before
 for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
-    rawdb.DeleteMinorBlock(batch, block.Hash())  // 删除了 body！
+    rawdb.DeleteMinorBlock(batch, block.Hash())  // deletes body!
     rawdb.DeleteCanonicalHash(...)
     m.currentBlock.Store(m.GetBlock(block.ParentHash()))
 }
-// 若 target block 的 state 丢失，额外重置到 genesis
-if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
-    m.currentBlock.Store(m.genesisBlock)  // Bug：将 currentBlock 重置为创世块
-}
 ```
 
-`reRunBlockWithState` 依赖 block body 来逐块重放交易、重建 state trie。`setHead` 删除 body 后，崩溃恢复时 `reRunBlockWithState` 找不到需要重放的块，导致恢复失败。
+`reRunBlockWithState` walks backward from `currentBlock` to find the last
+persisted-state ancestor, replaying blocks forward to rebuild the state trie.
+After `setHead(M)`, `currentBlock` is M, so replay only needs bodies at or
+below M — those bodies are not touched by `setHead`. The deleted bodies
+(M+1…N, above the new head) are not needed for the immediate crash recovery.
 
-此外，在 target block 的 state 丢失时将 `currentBlock` 强制重置为 genesis 也是错误的——崩溃后 state 丢失是正常情况，`reRunBlockWithState` 会在 `setHead` 之前重建，重置到 genesis 会抹掉重建结果。
+**Trigger path:**
 
-**触发场景：**
+`InitFromRootBlock` → `reWriteBlockIndexTo` → `reorg` (same-chain branch) →
+`setHead`. The same-chain reorg path calls `setHead(M)` to rewind `currentBlock`
+from height N down to M. This deletes the bodies of blocks M+1…N.
 
-`InitFromRootBlock` 调用 `reWriteBlockIndexTo` → `reorg` 路径，间接触发链重组操作时，如果发生 `setHead` 调用，就会删除 block bodies，令后续 `reRunBlockWithState` 无法正常工作。
+Note: `reRunBlockWithState` only walks backward from `currentBlock` (= M after
+the rewind), so it only needs bodies at or below M — those are intact. The
+deleted bodies (M+1…N) sit above the new tip and are not accessed during the
+next crash recovery. The real cost is that sync must re-download M+1…N from
+peers to restore them, even though their bodies were still present locally just
+moments before. There is no upside to this deletion and the re-download is
+unnecessary work.
 
-**修复：**
+**Fix:**
 
 ```go
-// 修复后：只删除 receipts 和 commit marker，保留 block body
+// After: delete only receipts and commit marker; preserve block body
 for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
     rawdb.DeleteReceipts(batch, block.Hash())
     rawdb.DeleteMinorBlockCommitStatus(batch, block.Hash())
     rawdb.DeleteCanonicalHash(...)
     m.currentBlock.Store(m.GetBlock(block.ParentHash()))
 }
-// 移除 genesis 重置逻辑：state 丢失由 reRunBlockWithState 处理
-if currentBlock := m.CurrentBlock(); currentBlock == nil {
-    m.currentBlock.Store(m.genesisBlock)  // 仅在 currentBlock 为 nil 时才重置
+```
+
+Block bodies are preserved so `reRunBlockWithState` can replay them on any
+future restart. Receipts are safe to drop — they are regenerated during replay.
+
+---
+
+### Bug 5b: `setHead` resets `currentBlock` to genesis on missing state
+
+**Location:** `core/minorblockchain.go`, `MinorBlockChain.setHead`
+
+**Cause:**
+
+When the target block's state trie was unavailable, `setHead` reset
+`currentBlock` to the genesis block:
+
+```go
+// Before
+if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
+    m.currentBlock.Store(m.genesisBlock)  // bug: resets to genesis
 }
 ```
 
+A missing state trie is the **normal post-crash condition** — the in-memory
+state was not flushed. `InitFromRootBlock` always calls `reRunBlockWithState`
+to rebuild the missing state *before* invoking `setHead`. Resetting to genesis
+discards that work and leaves the chain stuck at height 0.
+
+**Fix:**
+
+```go
+// After: only reset to genesis when currentBlock is literally nil
+if currentBlock := m.CurrentBlock(); currentBlock == nil {
+    m.currentBlock.Store(m.genesisBlock)
+}
+```
+
+Missing state is handled by the caller (`reRunBlockWithState`), not by
+`setHead`.
+
 ---
 
-## 3. 故障时间线
+## 3. Incident Timeline
 
 ```
-T0  节点异常关机（OOM 或 kill -9）
-    → 最近 128 块的 in-memory state trie 未持久化
+T0  Unclean shutdown (OOM or kill -9)
+    → In-memory state trie for the most recent 128 blocks is not flushed
 
-T1  节点重启
-    → reRunBlockWithState 尝试重建 state
-    → GetBlock() 返回 typed-nil interface
-    → consensus.go:153 nil pointer panic（Bug 1）
-    → 节点崩溃重启
+T1  Node restarts
+    → reRunBlockWithState attempts to rebuild state
+    → GetBlock() returns a typed-nil interface
+    → consensus.go:153 nil pointer panic (Bug 1)
+    → Node crashes and restarts
 
-T2  节点再次启动（Bug 1 修复后）
-    → Shard 40001 链尖恢复到 22774779
-    → Root block 3857740 包含 22774780/22774781/22774782
+T2  Node starts again (after Bug 1 fix)
+    → Shard 40001 chain tip recovered to 22774779
+    → Root block 3857740 references 22774780 / 22774781 / 22774782
 
-T3  同步开始
-    → 批次 [22774780, 22774781, 22774782] 到达
-    → 22774780 已 COMMITTED，跳过
-    → 22774781 InsertChainForDeposits 返回空 xshard（已知块）
-    → return nil（Bug 2）退出批次，22774782 被跳过
-    → 永久卡在 22774779
+T3  Sync begins
+    → Batch [22774780, 22774781, 22774782] arrives
+    → 22774780 is COMMITTED — skipped
+    → 22774781: InsertChainForDeposits returns empty xshard (block known)
+    → return nil (Bug 2) exits the batch; 22774782 is never processed
+    → Permanently stuck at 22774779
 
-T4  Bug 1+2+3 修复，节点重启
-    → 22774780 commit marker 残留，body 丢失
-    → HasBlock(22774780) = true（Bug 4）
-    → 22774780 被过滤，仅下载 22774781
+T4  Bugs 1+2+3 fixed, node restarts
+    → 22774780 commit marker survived crash, body is missing
+    → HasBlock(22774780) = true (Bug 4)
+    → 22774780 filtered out; only 22774781 downloaded
     → VerifyHeader(parent=22774780) → GetBlock = nil → unknown ancestor
 
-T5  所有 Bug（1-5）修复后节点正常启动
-    → HasBlock(22774780) = false（marker 存在但 body 缺失）
-    → 22774780 被重新下载，插入成功
-    → 22774781、22774782 顺利跟进，同步恢复
+T5  All bugs (1–5) fixed, node starts normally
+    → HasBlock(22774780) = false (marker present but body missing)
+    → 22774780 re-downloaded and inserted successfully
+    → 22774781 and 22774782 follow; sync resumes
 ```
 
 ---
 
-## 4. 为什么缺少任何一个 Bug 都不会完整触发
+## 4. Why No Single Bug Was Sufficient
 
-| Bug | 单独存在时的影响 |
-|-----|----------------|
-| Bug 1 only | panic 后重启，state 重建正常则可继续同步 |
-| Bug 2 only | 正常关机重启后同步可能卡住，但有可能通过重试恢复 |
-| Bug 3 only | 仅在特定恢复路径触发，正常运行不受影响 |
-| Bug 4 only | 仅在崩溃 + commit marker 残留 + body 丢失场景触发 |
-| Bug 5 only | 仅在 setHead 被调用时删除 body，正常重启不触发 |
-| Bug 1 + Bug 2 | 崩溃重启后同步必然卡死，无法自动恢复 |
-| Bug 1 + Bug 2 + Bug 4 | 修复前两个后，崩溃场景下 body 丢失引发新的 unknown ancestor |
-
----
-
-## 5. 深层原因：state trie 持久化机制
-
-QuarkChain 非 archive 模式下，state trie 每 128 块才写盘一次（`triesInMemory = 128`）。异常关机会导致最近 128 块的 state 只存在于内存中，重启后这些 state 丢失。
-
-`reRunBlockWithState` 机制用于应对这种情况：从最后一个有持久化 state 的块开始，逐块重放交易以重建 state。这是正常的容错机制，但它依赖于：
-1. `GetBlock()` 返回值的安全性（Bug 1 是此处暴露的问题）
-2. block body 在 `setHead` 后依然存在（Bug 5 是此处暴露的问题）
-3. `HasBlock()` 能准确反映 body 是否真正存在（Bug 4 是此处暴露的问题）
+| Bug | Effect in isolation |
+|-----|---------------------|
+| Bug 1 only | Panic on restart; if state rebuilds cleanly, sync can resume |
+| Bug 2 only | Sync may stall after a clean restart but can recover via retry |
+| Bug 3 only | Only triggers on specific recovery paths; normal operation unaffected |
+| Bug 4 only | Only triggers when crash leaves marker present but body absent |
+| Bug 5a only | Only deletes bodies when `setHead` is called; clean restart unaffected |
+| Bug 5b only | Only resets to genesis when `setHead` sees missing state |
+| Bug 1 + Bug 2 | Crash-restart always causes permanent sync stall |
+| Bug 1 + Bug 2 + Bug 4 | After fixing the first two, missing body produces a new unknown ancestor loop |
 
 ---
 
-## 6. 修复摘要
+## 5. Underlying Cause: State Trie Persistence Window
 
-| 编号 | 文件 | 修改内容 |
-|------|------|---------|
-| Bug 1 | `consensus/consensus.go` | `parent == nil` → `qkccommon.IsNil(parent)`；增加 Warn 日志 |
-| Bug 2 | `cluster/shard/api_backend.go` | `return nil` → `continue` |
-| Bug 3 | `core/minorblockchain_addon.go` | `isSameRootChain` 增加 `long < short` 提前返回 |
-| Bug 4 | `core/minorblockchain.go` | `HasBlock` 增加 `rawdb.HasBlock` body 存在性检查 |
-| Bug 5 | `core/minorblockchain.go` | `setHead` 改为只删 receipts + commit marker，保留 block body；移除 genesis reset |
-| 防护 | `core/minorblockchain.go` + `cluster/shard/api_backend.go` | 新增 `IsInitialized()` 防护，shard 未完成初始化时拒绝同步请求 |
-| 日志 | `consensus/consensus.go`、`core/minorblock_validator.go`、`cluster/slave/api_backend.go`、`cluster/shard/api_backend.go` | 增加 block number/hash/parentHash/chainTip 等诊断日志，便于后续排查 |
+In non-archive mode, QuarkChain flushes the state trie to disk every 128 blocks
+(`triesInMemory = 128`). An unclean shutdown loses the state for up to the most
+recent 128 blocks, which exist only in memory.
 
-所有修改均在分支 `fix/sync-unknown-ancestor` 中。
+`reRunBlockWithState` is the designed recovery mechanism: starting from the last
+block with a persisted state, it replays transactions forward to rebuild the
+trie. This mechanism depends on three invariants that the bugs above violated:
+
+1. `GetBlock()` must return a safe nil-check-able value — violated by Bug 1.
+2. Block bodies must survive a `setHead` call — violated by Bug 5a.
+3. `HasBlock()` must accurately reflect whether the body actually exists — violated by Bug 4.
+
+---
+
+## 6. Fix Summary
+
+| # | File | Change |
+|---|------|--------|
+| Bug 1 | `consensus/consensus.go` | `parent == nil` → `qkccommon.IsNil(parent)`; add Warn log |
+| Bug 2 | `cluster/shard/api_backend.go` | `return nil` → `continue`; distinguish `insertSidechain` vs `procInterrupt` sub-cases |
+| Bug 3 | `core/minorblockchain_addon.go` | Add `long < short` early-return guard in `isSameRootChain` |
+| Bug 4 | `core/minorblockchain.go` | `HasBlock` now requires both commit marker and `rawdb.HasBlock` body check |
+| Bug 5a | `core/minorblockchain.go` | `setHead`: replace `DeleteMinorBlock` with `DeleteReceipts` + `DeleteMinorBlockCommitStatus` |
+| Bug 5b | `core/minorblockchain.go` | `setHead`: remove state-missing → genesis reset; only reset when `currentBlock == nil` |
+| Guard | `core/minorblockchain.go` + `cluster/shard/api_backend.go` | Add `IsInitialized()` check; reject sync requests until `InitFromRootBlock` completes |
+| Logging | `consensus/consensus.go`, `core/minorblock_validator.go`, `cluster/shard/api_backend.go` | Add block number / hash / parentHash / prevRootHash to error logs for easier diagnosis |

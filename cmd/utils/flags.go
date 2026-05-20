@@ -150,6 +150,7 @@ var (
 		Usage: "the batch size of root block check at the same time",
 		Value: 0,
 	}
+
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",

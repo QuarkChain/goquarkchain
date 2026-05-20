@@ -207,18 +207,12 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
-	// If the block is committed, it means
-	// - All neighbor shards/slaves receives x-shard tx list
-	// - The block header is sent to master
-	// then return immediately
-	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
+	// Require both the commit marker and the block body. A crash can leave the
+	// marker present but the body absent; in that case the block must be
+	// re-inserted so the body is restored.
+	if s.MinorBlockChain.HasBlock(blockHash) {
 		return BLOCK_COMMITTED
 	}
-
-	//TODO support BLOCK_COMMITTING???
-
-	// Check if the block is being propagating to other slaves and the master
-	// Let's make sure all the shards and master got it before committing it
 	return BLOCK_UNCOMMITTED
 }
 

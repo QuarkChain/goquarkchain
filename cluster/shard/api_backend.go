@@ -430,12 +430,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return nil
 	}
 
-	// Guard against being called before InitFromRootBlock completes.
-	if !s.MinorBlockChain.IsInitialized() {
-		log.Warn(s.logInfo + " AddBlockListForSync called before shard initialized, retry later")
-		return fmt.Errorf("shard %d not initialized yet", s.branch.Value)
-	}
-
 	var (
 		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
 		uncommittedBlockHeaderList = make([]*types.MinorBlockHeader, 0, len(blockLst))
