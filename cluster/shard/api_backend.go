@@ -399,7 +399,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -481,7 +480,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header.Hash())
 	}
 	return nil

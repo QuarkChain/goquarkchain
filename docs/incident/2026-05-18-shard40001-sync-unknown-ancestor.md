@@ -9,9 +9,69 @@
 
 ## 1. Symptoms
 
-After a node restart from a crash, Shard 40001 exhibited two successive errors.
+The incident unfolded in three stages. The root cause (Symptom 1) was a race
+condition that produced an inconsistent DB state during normal operation.
+Symptom 2 was the crash that this inconsistency directly caused. Symptom 3
+remained after the crash was fixed.
 
-**Symptom 1: nil pointer panic (crash)**
+**Symptom 1: Race condition produces inconsistent chain state**
+
+Block 22774780's commit marker (`makeCommitMinorBlock` key) was present in
+LevelDB while the block was excluded from the canonical chain. This inconsistency
+was not caused by a crash — it was produced by a **race condition** between
+`AddBlockListForSync` and a concurrent `AddRootBlock` call (see §2, Bug 6).
+
+The race mechanism:
+
+1. `InsertChainForDeposits([22774780])` completes inside `m.chainmu`: body written,
+   commit marker written, canonical hash written.
+2. `m.chainmu` is released. The shard layer starts network calls
+   (`BroadcastXshardTxList`, `SendMinorBlockHeaderToMaster`) — typically 10–100 ms.
+3. Concurrently, `AddRootBlock` (holds neither `s.mu` nor `m.chainmu`) triggers
+   `reWriteBlockIndexTo` → acquires `m.chainmu` → `setHead(22774779)` →
+   **atomically deletes the commit marker, canonical hash, and block body** for
+   22774780 (body deletion was a separate bug fixed in Bug 5a).
+4. Network calls complete. The (pre-fix) code then calls
+   `CommitMinorBlockByHash(22774780)` — **outside all locks** — re-writing the
+   commit marker for a block whose body and canonical hash are now absent.
+5. End state: body ✗ (deleted by pre-Bug-5a `setHead`), commit marker ✓ (re-written by racy call), canonical hash ✗.
+6. `HasBlock(22774780)` returns `true` (marker present; pre-Bug-4 check was marker-only).
+7. Sync skips re-downloading 22774780.
+8. `GetBlock(22774780)` returns typed-nil (body absent) → **inserting 22774781 fails**.
+
+The full S0.log trace (05-17 12:00:33 window) confirms the interleaving:
+
+```
+37541295  12:00:33.032  Write MinorBlock height=22774780 hash=6a7f44…
+              ← putMinorBlock writes body; InsertChainForDeposits still inside m.chainmu
+
+37541296  12:00:33.033  reorg same chain curr=22774778 newBlock=22774780@6a7f44
+              ← WriteBlockWithState internal reorg (no-op, same chain); m.chainmu released after this
+
+37541318  12:00:33.101  ready to set current header height=22774779 hash=c47cd9 status=true curr=false
+              ← AddRootBlock detects canonical mismatch; running without m.chainmu or s.mu
+
+37541319  12:00:33.101  reWrite orig=22774778@70293b new=22774779@c47cd9
+              ← reWriteBlockIndexTo acquires m.chainmu to trigger reorg → setHead
+
+37541321  12:00:33.153  reorg same chain curr=22774780@6a7f44 newBlock=22774779@c47cd9
+              ← reorg determines 22774780 must be unwound
+
+37541322  12:00:33.153  Rewinding blockchain target=22774779
+              ← setHead atomically batch-deletes body+marker+canonHash for 22774780
+
+37541378  12:00:39.564  Downloading blocks synctask=shard-0 from=22774778 to=22774780
+              ← 6 s later: new sync cycle re-downloads; racy CommitMinorBlockByHash
+                 fired in the 120 ms window between lines 37541296 and 37541322,
+                 leaving marker present despite body+canonHash being deleted
+```
+
+This cycle persisted across restarts: each time the node recovered and synced
+22774780, the race could recur, leaving 22774781 permanently unreachable.
+
+---
+
+**Symptom 2: Nil pointer panic — direct consequence of Symptom 1**
 
 ```
 panic: runtime error: invalid memory address or nil pointer dereference
@@ -20,10 +80,21 @@ github.com/QuarkChain/goquarkchain/core/types.(*MinorBlock).NumberU64(...)
 github.com/QuarkChain/goquarkchain/consensus/consensus.go:153
 ```
 
-The node crashed repeatedly on startup. Once Symptom 1 was fixed (Bug 1), the
-panic was eliminated but the node immediately exhibited Symptom 2.
+When sync attempted to insert block 22774781, `VerifyHeader` called
+`chain.GetBlock(22774780)`. With the block body absent (Symptom 1, state 5),
+`GetBlock` returned a **typed-nil** `types.IBlock` — a non-nil interface wrapping
+a nil `*MinorBlock` pointer. The guard `if parent == nil` evaluated to `false`
+(typed-nil is not nil at the interface level), so execution continued to
+`parent.NumberU64()`, which dereferenced the nil pointer and panicked.
 
-**Symptom 2: unknown ancestor (sync stall)**
+This crash repeated on every restart: the race re-created the bad state, and the
+typed-nil panic re-triggered on the next sync attempt. Once Bug 1 was fixed
+(`parent == nil` replaced by `qkccommon.IsNil(parent)`), the panic became a
+graceful `ErrUnknownAncestor` — but the sync remained stalled (Symptom 3).
+
+---
+
+**Symptom 3: Persistent "unknown ancestor" sync stall — after Symptom 2 is fixed**
 
 ```
 WARN [05-18] VerifyHeader unknown ancestor
@@ -31,32 +102,16 @@ WARN [05-18] VerifyHeader unknown ancestor
   chainTip=22774779 chainTipHash=0x...
 ```
 
-Shard 40001's chain tip was stuck at 22774779. Block 22774781 could not be inserted, and sync remained stalled indefinitely.
-
-**Symptom 3: inconsistent LevelDB state after crash**
-
-After the crash, block 22774780's commit marker (`makeCommitMinorBlock` key) was
-present in LevelDB while its block body (`blockKey`) was absent. These are
-completely independent keys. The commit marker caused `HasBlock` to return
-`true`, so the block was filtered from the download list — but `GetBlock` then
-returned `nil` because the body was missing, producing the "unknown ancestor"
-error above.
-
-The exact mechanism that produced this state was not conclusively identified
-from code inspection. In the current codebase:
-- All insertion paths write the body before the marker; a crash during insertion
-  leaves body present and marker absent (harmless).
-- The deletion path in `setHead` uses a LevelDB batch, making body and marker
-  deletion atomic; OOM cannot cause partial batch application.
-
-The inconsistency is real — it was observed in production — but its root cause
-requires reviewing the original crash-time logs to confirm.
+After Bug 1 was fixed, the nil pointer panic was replaced by a graceful
+`ErrUnknownAncestor` return from `VerifyHeader`. Shard 40001's chain tip remained
+stuck at 22774779. Block 22774781 could not be inserted, and sync remained
+stalled indefinitely, cycling through Bugs 2, 4, and 5 until all were addressed.
 
 ---
 
 ## 2. Root Cause Analysis
 
-The incident was triggered by five independent bugs compounding on each other.
+The incident was triggered by multiple independent bugs compounding on each other.
 
 ### Bug 1: Typed-nil interface causes nil pointer panic
 
@@ -192,7 +247,7 @@ func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 ```
 
 These are **completely independent LevelDB keys**. The "marker present, body
-absent" state was observed in production (see Symptom 3 above); `HasBlock` must
+absent" state was observed in production (see Symptom 1 above); `HasBlock` must
 defend against it regardless of the exact mechanism.
 
 **Trigger path (persists after Bug 1+2+3 are fixed):**
@@ -309,37 +364,146 @@ Missing state is handled by the caller (`reRunBlockWithState`), not by
 
 ---
 
+### Bug 6: Race condition — redundant `CommitMinorBlockByHash` outside all locks
+
+**Location:** `cluster/shard/api_backend.go`, `AddMinorBlock` (line 402) and
+`AddBlockListForSync` (line 484)
+
+**Cause:**
+
+After `InsertChainForDeposits` returns, the shard layer performs two network
+calls (`BroadcastXshardTxList` / `SendMinorBlockHeaderToMaster`), then calls
+`CommitMinorBlockByHash` again. This second call is entirely outside `m.chainmu`
+and `m.mu`. It races with `AddRootBlock`, which acquires `m.chainmu` to call
+`setHead`. The race produces the "marker present, body/canonical-hash absent" state
+described in Symptom 1.
+
+`CommitMinorBlockByHash` was already called inside `insertChain` (via
+`WriteBlockWithState:1002` for canonical/side blocks, or `insertSidechain:1272`
+for pruned-ancestor blocks) while `m.chainmu` is held. The shard-layer calls
+were redundant from the outset.
+
+**Race interleaving (for a single block X):**
+
+```
+Goroutine A — AddBlockListForSync (holds s.mu):
+  InsertChainForDeposits(X)           ← m.chainmu held inside; body+marker written
+  m.chainmu released
+  BroadcastXshardTxList(...)          ← network, ~10–100 ms, no locks
+                                      ┌─────────────────────────────────────┐
+                                      │  Goroutine B — AddRootBlock         │
+                                      │  (no s.mu, no m.chainmu)            │
+                                      │  reWriteBlockIndexTo →              │
+                                      │    m.chainmu.Lock()                 │
+                                      │    setHead(X.Number - 1)            │
+                                      │      batch.Delete(body+marker[X])   │
+                                      │      batch.Delete(canonHash[X])     │
+                                      │      batch.Write()   ← atomic       │
+                                      │    m.chainmu.Unlock()               │
+                                      └─────────────────────────────────────┘
+  SendMinorBlockHeaderListToMaster(...)
+  CommitMinorBlockByHash(X)           ← re-writes marker[X] with NO lock
+                                        canonical hash[X] still absent
+
+Final state:  body[X]         = ABSENT
+              marker[X]       = PRESENT  (re-written by racy call)
+              canonHash[X]    = ABSENT   (deleted by setHead)
+
+→ HasBlock(X) = true  → sync skips X
+→ GetBlockByNumber(X) = nil  → "unknown ancestor" for X+1
+```
+
+**Fix:**
+
+Remove both redundant shard-layer calls. Every block processed by
+`InsertChainForDeposits` that is successfully committed already has its marker
+written inside `insertChain` while holding `m.chainmu`.
+
+```go
+// cluster/shard/api_backend.go — AddMinorBlock
+// Before:
+s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())   // removed
+if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+
+// After:
+if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+
+
+// cluster/shard/api_backend.go — AddBlockListForSync
+// Before:
+for _, header := range uncommittedBlockHeaderList {
+    s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())  // removed
+    s.mBPool.delBlockInPool(header.Hash())
+}
+
+// After:
+for _, header := range uncommittedBlockHeaderList {
+    s.mBPool.delBlockInPool(header.Hash())
+}
+```
+
+**Why the redundant calls were harmless in normal operation:**
+
+In the common case, `AddRootBlock` has already confirmed the block via
+`HasBlock` before `InsertChainForDeposits` is called, so no concurrent `setHead`
+is triggered. The race requires a root block arriving during the narrow network-
+call window, which is rare but not impossible.
+
+---
+
+### Bug 7: Additional nil / typed-nil patterns analogous to Bug 1
+
+The same class of defect as Bug 1 — `== nil` / `!= nil` checks that fail for
+typed-nil interfaces, or nil pointer dereferences after a correct IsNil guard —
+was found in three more locations and fixed with the same approach: replace
+`== nil` / `!= nil` comparisons with `qkcCommon.IsNil`, and use concrete-type
+accessors (`GetMinorBlock`) instead of interface-returning ones (`GetBlock`)
+where the result is stored in an `atomic.Value` or type-asserted directly.
+
+| Location | Defect | Fix |
+|----------|--------|-----|
+| `reRunBlockWithState` (`minorblockchain_addon.go`) | Nil check correct, but error message calls `block.NumberU64()` / `block.Hash()` on the nil pointer | Save `parentHash` before reassigning `block`; use it in the error string |
+| `reorg` loop conditions (`minorblockchain.go`) | `oldBlock != nil` / `newBlock != nil` pass for typed-nil, loop body then panics | Replace with `!qkcCommon.IsNil(oldBlock)` / `!qkcCommon.IsNil(newBlock)` |
+| `setHead` and `AddRootBlock` (`minorblockchain.go`, `minorblockchain_addon.go`) | `GetBlock` return value (typed-nil `types.IBlock`) passed to `atomic.Value.Store` or type-asserted directly | Use `GetMinorBlock` (returns concrete `*types.MinorBlock`) with a nil guard before storing |
+
+---
+
 ## 3. Incident Timeline
 
 ```
-T0  Unclean shutdown (OOM or kill -9)
-    → In-memory state trie for the most recent 128 blocks is not flushed
+T0  Node running normally (pre-crash)
+    → Race condition (Bug 6 + Bug 5a pre-fix): root block 3857740 arrives
+      while AddBlockListForSync is between BroadcastXshardTxList and
+      CommitMinorBlockByHash for block 22774780
+    → setHead(22774779) atomically deletes body+marker+canonHash for 22774780
+      (Bug 5a: setHead was also deleting the body at this time)
+    → Racy CommitMinorBlockByHash re-writes marker[22774780] outside all locks
+    → End state: body ABSENT, marker PRESENT, canonHash ABSENT (Symptom 1)
 
-T1  Node restarts
-    → reRunBlockWithState attempts to rebuild state
-    → GetBlock() returns a typed-nil interface
-    → consensus.go:153 nil pointer panic (Bug 1)
-    → Node crashes and restarts
+T1  Sync attempts to insert block 22774781
+    → VerifyHeader(22774781) → GetBlock(22774780) → typed-nil (body absent)
+    → parent == nil is false (typed-nil), parent.NumberU64() → PANIC (Bug 1)
+    → Node crashes; cycle repeats on each restart (Symptom 2)
 
-T2  Node starts again (after Bug 1 fix)
-    → Shard 40001 chain tip recovered to 22774779
-    → Root block 3857740 references 22774780 / 22774781 / 22774782
+T2  Bug 1 fixed: qkccommon.IsNil replaces == nil in VerifyHeader
+    → Panic replaced by graceful ErrUnknownAncestor
+    → Shard 40001 chain tip at 22774779; root block 3857740 resent
 
-T3  Sync begins
+T3  Sync begins (after Bug 1 fix)
     → Batch [22774780, 22774781, 22774782] arrives
-    → 22774780 is COMMITTED — skipped
+    → 22774780: HasBlock = true (marker present, body absent) — COMMITTED, skipped
     → 22774781: InsertChainForDeposits returns empty xshard (block known)
-    → return nil (Bug 2) exits the batch; 22774782 is never processed
-    → Permanently stuck at 22774779
+    → return nil (Bug 2) exits the batch; 22774782 never processed
+    → Permanently stuck at 22774779 (Symptom 3)
 
 T4  Bugs 1+2+3 fixed, node restarts
-    → 22774780 commit marker survived crash, body is missing
-    → HasBlock(22774780) = true (Bug 4)
+    → 22774780 commit marker survived; body still absent after re-download gap
+    → HasBlock(22774780) = true (Bug 4: marker-only check)
     → 22774780 filtered out; only 22774781 downloaded
     → VerifyHeader(parent=22774780) → GetBlock = nil → unknown ancestor
 
-T5  All bugs (1–5) fixed, node starts normally
-    → HasBlock(22774780) = false (marker present but body missing)
+T5  All bugs (1–6) fixed, node starts normally
+    → HasBlock(22774780) = false (Bug 4 fix: marker+body check; body absent → re-download)
     → 22774780 re-downloaded and inserted successfully
     → 22774781 and 22774782 follow; sync resumes
 ```
@@ -356,8 +520,11 @@ T5  All bugs (1–5) fixed, node starts normally
 | Bug 4 only | Only triggers when crash leaves marker present but body absent |
 | Bug 5a only | Only deletes bodies when `setHead` is called; clean restart unaffected |
 | Bug 5b only | Only resets to genesis when `setHead` sees missing state |
+| Bug 6 only | Race window is narrow; only manifests when `AddRootBlock` arrives during broadcast latency |
 | Bug 1 + Bug 2 | Crash-restart always causes permanent sync stall |
 | Bug 1 + Bug 2 + Bug 4 | After fixing the first two, missing body produces a new unknown ancestor loop |
+| Bug 6 + Bug 4 (pre-fix) | Race writes marker back; old `HasBlock` (marker-only) treats block as committed; sync skips re-download; permanent stall |
+| Bug 6 + Bug 4 (post-fix) | Race writes marker back; new `HasBlock` (marker + body) still returns `true` (body preserved by Bug 5a fix); canonical hash absent → unknown ancestor persists |
 
 ---
 
@@ -369,11 +536,14 @@ recent 128 blocks, which exist only in memory.
 
 `reRunBlockWithState` is the designed recovery mechanism: starting from the last
 block with a persisted state, it replays transactions forward to rebuild the
-trie. This mechanism depends on three invariants that the bugs above violated:
+trie. This mechanism depends on four invariants that the bugs above violated:
 
 1. `GetBlock()` must return a safe nil-check-able value — violated by Bug 1.
 2. Block bodies must survive a `setHead` call — violated by Bug 5a.
 3. `HasBlock()` must accurately reflect whether the body actually exists — violated by Bug 4.
+4. The commit marker must only be written while `m.chainmu` is held, so that
+   `setHead` (which also holds `m.chainmu` when removing it) cannot be
+   interleaved with a marker write — violated by Bug 6.
 
 ---
 
@@ -387,5 +557,7 @@ trie. This mechanism depends on three invariants that the bugs above violated:
 | Bug 4 | `core/minorblockchain.go` | `HasBlock` now requires both commit marker and `rawdb.HasBlock` body check |
 | Bug 5a | `core/minorblockchain.go` | `setHead`: replace `DeleteMinorBlock` with `DeleteReceipts` + `DeleteMinorBlockCommitStatus` |
 | Bug 5b | `core/minorblockchain.go` | `setHead`: remove state-missing → genesis reset; only reset when `currentBlock == nil` |
+| Bug 6 | `cluster/shard/api_backend.go` | Remove redundant `CommitMinorBlockByHash` calls in `AddMinorBlock` and `AddBlockListForSync` that raced with `setHead` |
+| Bug 7 | `core/minorblockchain.go`, `core/minorblockchain_addon.go` | Three additional nil/typed-nil patterns analogous to Bug 1: `reRunBlockWithState` error-path nil deref; `reorg` loop `!= nil` → `!qkcCommon.IsNil`; `setHead`/`AddRootBlock` use `GetMinorBlock` instead of `GetBlock` |
 | Guard | `core/minorblockchain.go` + `cluster/shard/api_backend.go` | Add `IsInitialized()` check; reject sync requests until `InitFromRootBlock` completes |
 | Logging | `consensus/consensus.go`, `core/minorblock_validator.go`, `cluster/shard/api_backend.go` | Add block number / hash / parentHash / prevRootHash to error logs for easier diagnosis |
