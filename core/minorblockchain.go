@@ -325,8 +325,6 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 	// Receipts are also dropped; they are regenerated on re-insertion.
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
-		rawdb.DeleteReceipts(batch, block.Hash())
-		rawdb.DeleteMinorBlockCommitStatus(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
 		m.currentBlock.Store(m.GetMinorBlock(block.ParentHash()))
 	}
