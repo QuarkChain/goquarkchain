@@ -920,33 +920,31 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		m.triegc.Push(root, -int64(block.NumberU64()))
 
-		if m.rootTip != nil && block.NumberU64() > triesInMemory {
-			current := block.NumberU64()
-			if m.rootTip.NumberU64() > triesInRootBlock && current > triesInMemory {
-				// If we exceeded our memory allowance, flush matured singleton nodes to disk
-				var (
-					nodes, imgs = triedb.Size()
-					limit       = common.StorageSize(m.cacheConfig.TrieDirtyLimit) * 1024 * 1024
-				)
-				if nodes > limit || imgs > 4*1024*1024 {
-					triedb.Cap(limit - ethdb.IdealBatchSize)
-				}
-				// Find the next state trie we need to commit
-				target := m.GetBlockByNumber(current - triesInMemory)
-				if qkcCommon.IsNil(target) {
-					log.Error("minorBlock not found", "height", current-triesInMemory)
-				} else {
-					mBlock := target.(*types.MinorBlock)
+		if current := block.NumberU64(); m.rootTip != nil && m.rootTip.NumberU64() > triesInRootBlock && current > triesInMemory {
+			// If we exceeded our memory allowance, flush matured singleton nodes to disk
+			var (
+				nodes, imgs = triedb.Size()
+				limit       = common.StorageSize(m.cacheConfig.TrieDirtyLimit) * 1024 * 1024
+			)
+			if nodes > limit || imgs > 4*1024*1024 {
+				triedb.Cap(limit - ethdb.IdealBatchSize)
+			}
+			// Find the next state trie we need to commit
+			block := m.GetBlockByNumber(current - triesInMemory)
+			if qkcCommon.IsNil(block) {
+				log.Error("minorBlock not found", "height", current-triesInMemory)
+			} else {
+				mBlock := block.(*types.MinorBlock)
 
-					// If we exceeded out time allowance, flush an entire trie to disk
-					if mBlock.NumberU64()%triesInMemory == 0 {
-						// Flush an entire trie and restart the counters
-						triedb.Commit(mBlock.GetMetaData().Root, false)
-						log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
-					}
+				// If we exceeded out time allowance, flush an entire trie to disk
+				if mBlock.NumberU64()%triesInMemory == 0 {
+					// Flush an entire trie and restart the counters
+					triedb.Commit(mBlock.GetMetaData().Root, false)
+					log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
 				}
+			}
 
-				if m.rootTip.NumberU64()%triesInRootBlock == 0 && m.rootTip.Hash() != m.lastDereferenceRoot {
+			if m.rootTip.NumberU64()%triesInRootBlock == 0 && m.rootTip.Hash() != m.lastDereferenceRoot {
 				m.lastDereferenceRoot = m.rootTip.Hash()
 				preRootBlock := m.GetRootBlockByHeight(m.rootTip.Hash(), m.rootTip.NumberU64()-triesInRootBlock)
 				preRootBlockConfirmedMinorBlock := m.GetMinorBlock(m.ReadLastConfirmedMinorBlockHeaderAtRootBlock(preRootBlock.Hash()))
