@@ -480,7 +480,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 			// Skip this root block and let it sync naturally when the root block
 			// chain catches up. The shard will start from the genesis block.
 			if err == ErrRootBlockIsNil {
-				log.Warn(m.logInfo, "InitFromRootBlock: parent root block not found, skipping. The root block chain will sync naturally.", "rootBlockNumber", rBlock.Number())
+				log.Warn(m.logInfo, "rootBlockNumber", rBlock.Number())
 				m.rootTip = m.GetRootBlockByHash(rBlock.ParentHash())
 			} else {
 				m.Stop()
@@ -496,8 +496,16 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
-		log.Warn(m.logInfo, "confirmedHeaderTip is nil, falling back to genesis block", "rBlock.Hash", rBlock.Hash().String())
-		headerTip = m.GetBlockByNumber(0).(*types.MinorBlock)
+		// No confirmed header for this root block yet — fall back to CurrentBlock
+		// rather than genesis, so we can re-run from the last known chain head.
+		currentBlock := m.CurrentBlock()
+		if currentBlock != nil {
+			headerTip = currentBlock
+			log.Warn(m.logInfo, "confirmedHeaderTip is nil, falling back to CurrentBlock", "height", headerTip.NumberU64(), "hash", headerTip.Hash().String())
+		} else {
+			headerTip = m.GetBlockByNumber(0).(*types.MinorBlock)
+			log.Warn(m.logInfo, "confirmedHeaderTip is nil and CurrentBlock nil, falling back to genesis")
+		}
 	}
 
 	m.confirmedHeaderTip = confirmedHeaderTip
@@ -525,6 +533,13 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		if err := m.reRunBlockWithState(block); err != nil {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
 			return err
+		}
+		// Flush all in-memory trie nodes to disk so the rebuilt state persists across restarts.
+		// Without this, re-running blocks only produces an in-memory state that is lost on restart.
+		triedb := m.stateCache.TrieDB()
+		if triedb != nil {
+			triedb.Flush()
+			log.Info(m.logInfo, "flushed rebuilt trie to disk", "number", m.CurrentBlock().NumberU64())
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}

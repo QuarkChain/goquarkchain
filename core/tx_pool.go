@@ -99,6 +99,7 @@ const (
 type minorBlockChain interface {
 	CurrentBlock() *types.MinorBlock
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
+	StateAt(root common.Hash) (*state.StateDB, error)
 	stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	ChainConfig() *params.ChainConfig
@@ -1017,8 +1018,15 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	}
 	statedb, err := pool.chain.stateAtWithSenderDisallowMap(newBlock, nil)
 	if err != nil {
-		log.Error("Failed to reset txpool state", "err", err)
-		return
+		// Trie node missing — try raw StateAt as a fallback (state only, no sender-disallow map).
+		// This can happen after a crash when trie nodes are missing from the persisted trie DB.
+		log.Warn("txpool reset stateAtWithSenderDisallowMap failed, trying fallback", "block", newBlock.NumberU64(), "err", err)
+		statedb, err = pool.chain.StateAt(newBlock.Root())
+		if err != nil {
+			log.Error("Failed to reset txpool state (both methods)", "err", err)
+			return
+		}
+		log.Warn("txpool reset recovered with fallback state", "block", newBlock.NumberU64())
 	}
 	pool.currentState = statedb
 	pool.currentState.SetQuarkChainConfig(pool.chain.Config())
