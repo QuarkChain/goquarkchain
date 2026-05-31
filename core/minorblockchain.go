@@ -1433,10 +1433,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
 			return err
 		}
-		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
 	}
-
-	batch.Write()
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
@@ -1449,6 +1446,11 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 
 	if len(newChain) == 0 {
+		// same-chain reorg: need to delete old chain canonical hashes since
+		// insert() only writes newBlock's canonical hash, not delete old ones
+		for i := len(oldChain) - 1; i >= 0; i-- {
+			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
+		}
 		m.insert(newBlock.(*types.MinorBlock))
 	}
 
