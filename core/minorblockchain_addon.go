@@ -534,12 +534,17 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
 			return err
 		}
-		// Flush all in-memory trie nodes to disk so the rebuilt state persists across restarts.
+		// Commit all in-memory trie roots to disk so the rebuilt state persists across restarts.
 		// Without this, re-running blocks only produces an in-memory state that is lost on restart.
 		triedb := m.stateCache.TrieDB()
 		if triedb != nil {
-			triedb.Flush()
-			log.Info(m.logInfo, "flushed rebuilt trie to disk", "number", m.CurrentBlock().NumberU64())
+			for !m.triegc.Empty() {
+				root := m.triegc.PopItem().(common.Hash)
+				if err := triedb.Commit(root, false); err != nil {
+					log.Error("Failed to commit rebuilt trie to disk", "root", root.String(), "err", err)
+				}
+			}
+			log.Info(m.logInfo, "committed rebuilt trie to disk", "number", m.CurrentBlock().NumberU64())
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
