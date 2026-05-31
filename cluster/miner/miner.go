@@ -3,6 +3,7 @@ package miner
 import (
 	"math/big"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -99,6 +100,13 @@ func (m *Miner) commit(addr *account.Address) {
 	m.interrupt()
 	block, diff, optionalDivider, err := m.api.CreateBlockToMine(addr)
 	if err != nil {
+		// During recovery (rootTip not ready), the error is expected — use Warn instead of Error.
+		if strings.Contains(err.Error(), "rootTip not ready") {
+			log.Warn(m.logInfo, "create block to mine err", err)
+			time.Sleep(10 * time.Second)
+			m.startCh <- struct{}{}
+			return
+		}
 		log.Error(m.logInfo, "create block to mine err", err)
 		// retry to create block to mine
 		time.Sleep(2 * time.Second)
