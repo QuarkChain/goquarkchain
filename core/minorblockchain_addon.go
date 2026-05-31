@@ -381,7 +381,9 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash 
 
 func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock) bool {
 	// During initialisation/recovery, rootTip may not be set yet — allow insertion.
-	if long == nil || short == nil {
+	// Use qkcCommon.IsNil to detect nil interface values (Go's == nil doesn't catch
+	// interfaces that hold nil pointers — they have a type but nil data).
+	if qkcCommon.IsNil(long) || qkcCommon.IsNil(short) {
 		return true
 	}
 	if long.NumberU64() < short.NumberU64() {
