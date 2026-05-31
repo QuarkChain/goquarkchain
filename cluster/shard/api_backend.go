@@ -378,12 +378,14 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead.Number)
+		log.Error(s.logInfo+" Failed to broadcast xshard tx list, rolling back block", "err", err, "height", block.NumberU64())
+		s.MinorBlockChain.Rollback([]common.Hash{block.Hash()})
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
-		s.setHead(currHead.Number)
+		log.Error(s.logInfo+" Failed to get shard stats, rolling back block", "err", err, "height", block.NumberU64())
+		s.MinorBlockChain.Rollback([]common.Hash{block.Hash()})
 		return err
 	}
 
@@ -394,9 +396,9 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		ShardStats:        status,
 		CoinbaseAmountMap: block.CoinbaseAmount(),
 	}
-	err = s.conn.SendMinorBlockHeaderToMaster(requests)
-	if err != nil {
-		s.setHead(currHead.Number)
+	if err = s.conn.SendMinorBlockHeaderToMaster(requests); err != nil {
+		log.Error(s.logInfo+" Failed to send minor block header to master, rolling back block", "err", err, "height", block.NumberU64())
+		s.MinorBlockChain.Rollback([]common.Hash{block.Hash()})
 		return err
 	}
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
@@ -405,7 +407,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead.Number)
+			log.Error(s.logInfo+" Failed to broadcast new tip, rolling back block", "err", err, "height", block.NumberU64())
+			s.MinorBlockChain.Rollback([]common.Hash{block.Hash()})
 			return err
 		}
 	}

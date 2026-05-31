@@ -1420,14 +1420,10 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		} else {
 			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 		}
-
 	} else {
-		// we support reorg block from same chain,because we should delete and add tx index
+		// we support reorg block from same chain, because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if err := m.setHead(newBlockNumber); err != nil {
-			return err
-		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1437,6 +1433,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
 			return err
 		}
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
 	}
 
 	batch.Write()
@@ -1449,6 +1446,10 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err
 		}
+	}
+
+	if len(newChain) == 0 {
+		m.insert(newBlock.(*types.MinorBlock))
 	}
 
 	if len(deletedLogs) > 0 {
