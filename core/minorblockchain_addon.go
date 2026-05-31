@@ -469,27 +469,41 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		log.Warn("ReInitFromBlock", "InitFromBlock", rBlock.Number())
 	}
 	m.initialized = true
+	rootTipAdded := false
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	if confirmedHeaderTip == nil || m.GetRootBlockByHash(rBlock.Hash()) == nil {
 		log.Warn("err-InitFromRootBlock", "confirmedHeaderTip == nil", "m.GetRootBlockByHash(rBlock.Hash())==nil")
 		m.rootTip = m.GetRootBlockByHash(rBlock.ParentHash())
 		_, err := m.AddRootBlock(rBlock)
 		if err != nil {
-			m.Stop()
-			log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64())
-			return err
+			// If the parent root block doesn't exist, the root block chain is empty.
+			// Skip this root block and let it sync naturally when the root block
+			// chain catches up. The shard will start from the genesis block.
+			if err == ErrRootBlockIsNil {
+				log.Warn(m.logInfo, "InitFromRootBlock: parent root block not found, skipping. The root block chain will sync naturally.", "rootBlockNumber", rBlock.Number())
+				m.rootTip = m.GetRootBlockByHash(rBlock.ParentHash())
+			} else {
+				m.Stop()
+				log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64(), "err", err)
+				return err
+			}
+		} else {
+			confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+			m.rootTip = rBlock
+			rootTipAdded = true
 		}
-		confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	}
 
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
-		log.Error(m.logInfo, "confirmedHeaderTip", confirmedHeaderTip, "rBlock.Hash", rBlock.Hash().String())
+		log.Warn(m.logInfo, "confirmedHeaderTip is nil, falling back to genesis block", "rBlock.Hash", rBlock.Hash().String())
 		headerTip = m.GetBlockByNumber(0).(*types.MinorBlock)
 	}
 
-	m.rootTip = rBlock
 	m.confirmedHeaderTip = confirmedHeaderTip
+	if !rootTipAdded {
+		m.rootTip = m.GetRootBlockByHash(rBlock.ParentHash())
+	}
 	headerTipHash := headerTip.Hash()
 	block := rawdb.ReadMinorBlock(m.db, headerTipHash)
 	if block == nil {
