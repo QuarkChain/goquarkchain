@@ -993,6 +993,9 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
+	if m.rootTip == nil {
+		return nil, errors.New("rootTip not ready, recovery in progress")
+	}
 	currRootTipHash := m.rootTip.Hash()
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit,
 		nil, nil, &currRootTipHash)
@@ -1127,6 +1130,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	}
 
 	// No change to root tip
+	if m.rootTip == nil {
+		m.mu.Lock()
+		m.rootTip = rBlock
+		m.mu.Unlock()
+		return false, nil
+	}
 	if rBlock.TotalDifficulty().Cmp(m.rootTip.TotalDifficulty()) <= 0 {
 		if !m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 			return false, ErrNotSameRootChain
