@@ -271,15 +271,18 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	toBranch := account.Branch{Value: evmTx.ToFullShardId()}
 
 	if evmTx.IsCrossShard() {
-		initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number())
-		hasInit := false
-		for _, v := range initializedFullShardIDs {
-			if toBranch.GetFullShardID() == v {
-				hasInit = true
+		// During initialisation, rootTip may not be set yet — allow cross-shard txs.
+		if m.rootTip != nil {
+			initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number())
+			hasInit := false
+			for _, v := range initializedFullShardIDs {
+				if toBranch.GetFullShardID() == v {
+					hasInit = true
+				}
 			}
-		}
-		if !hasInit {
-			return nil, errors.New("shard is not initialized yet")
+			if !hasInit {
+				return nil, errors.New("shard is not initialized yet")
+			}
 		}
 	}
 
@@ -377,6 +380,10 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash 
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock) bool {
+	// During initialisation/recovery, rootTip may not be set yet — allow insertion.
+	if long == nil || short == nil {
+		return true
+	}
 	if long.NumberU64() < short.NumberU64() {
 		return false
 	}
@@ -411,8 +418,14 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
-		t := m.rootTip.Number()
-		rootHeight = &t
+		if m.rootTip != nil {
+			t := m.rootTip.Number()
+			rootHeight = &t
+		} else {
+			// During recovery, use the shard genesis root height.
+			g := uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
+			rootHeight = &g
+		}
 	}
 	shardSize := len(m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(*rootHeight))
 	return account.IsNeighbor(m.branch, remoteBranch, uint32(shardSize))
@@ -517,8 +530,12 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if block == nil {
 		return ErrMinorBlockIsNil
 	}
+	rootTipNum := uint64(0)
+	if m.rootTip != nil {
+		rootTipNum = m.rootTip.NumberU64()
+	}
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
-		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number,
+		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", rootTipNum,
 		"currentBlock", m.CurrentBlock().NumberU64())
 	var err error
 	if _, err = m.StateAt(block.Root()); err != nil {
