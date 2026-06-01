@@ -1439,7 +1439,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 
-	// we support reorg block from same chain, because we should delete and add tx index
 	if len(newChain) == 0 {
 		// same-chain reorg: need to delete old chain canonical hashes since
 		// insert() only writes newBlock's canonical hash, not delete old ones
@@ -1447,6 +1446,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
 		}
 		m.insert(newBlock.(*types.MinorBlock))
+		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
 	}
 
 	batch.Write()
