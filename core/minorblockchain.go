@@ -325,10 +325,14 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 	// Receipts are also dropped; they are regenerated on re-insertion.
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
+		preBlock := m.GetMinorBlock(block.ParentHash())
+		if preBlock == nil {
+			return fmt.Errorf("Rewind block missing parent: %d, hash: %s", block.NumberU64(), block.Hash().Hex())
+		}
 		rawdb.DeleteReceipts(batch, block.Hash())
 		rawdb.DeleteMinorBlockCommitStatus(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(m.GetMinorBlock(block.ParentHash()))
+		m.currentBlock.Store(preBlock)
 	}
 	batch.Write()
 	// Do NOT reset currentBlock to genesis when state is missing here.
@@ -1422,12 +1426,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 
 	} else {
-		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if err := m.setHead(newBlockNumber); err != nil {
-			return err
-		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1437,6 +1437,16 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
 			return err
 		}
+	}
+
+	// we support reorg block from same chain, because we should delete and add tx index
+	if len(newChain) == 0 {
+		// same-chain reorg: need to delete old chain canonical hashes since
+		// insert() only writes newBlock's canonical hash, not delete old ones
+		for i := len(oldChain) - 1; i >= 0; i-- {
+			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
+		}
+		m.insert(newBlock.(*types.MinorBlock))
 	}
 
 	batch.Write()
