@@ -4,9 +4,6 @@ permissions:
   contents: read  
   pull-requests: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   schedule:
     - cron: '41 2 * * *'
@@ -78,7 +75,7 @@ jobs:
             echo "[$NAME] sinceLastBlockTime: ${since_last_block}s"
 
             if [[ "$since_last_block" -eq 0 || "$since_last_block" -gt 600 ]]; then
-              result="failure"
+              result="warning"
               _h=$(( since_last_block / 3600 ))
               _m=$(( (since_last_block % 3600) / 60 ))
               _s=$(( since_last_block % 60 ))
@@ -105,8 +102,14 @@ jobs:
             > "$report_file"
 
           if [[ "$result" != "success" ]]; then
-            echo "[$NAME] Root chain check FAILED: $error_msg"
-            exit 1
+            if [[ "$result" == "warning" ]]; then
+              echo "::warning title=${NAME} root chain catch-up::${error_msg}"
+              echo "[$NAME] Root chain check WARNING: $error_msg"
+              exit 0
+            else
+              echo "[$NAME] Root chain check FAILED: $error_msg"
+              exit 1
+            fi
           fi
 
           echo "[$NAME] Root chain check OK: Last block was ${since_last_block}s ago, height: ${root_height}"
@@ -166,11 +169,16 @@ jobs:
               rc_result="$(jq -r '.result' "$f")"
               rc_height="$(jq -r '.root_height' "$f")"
               rc_error="$(jq -r '.error' "$f")"
-              if [[ "$rc_result" != "success" ]]; then
+              if [[ "$rc_result" == "failure" ]]; then
                 overall="FAILED"
                 send=true
                 rc_icon="❌"
                 if [[ -z "$rc_error" ]]; then rc_error="unknown error"; fi
+              elif [[ "$rc_result" == "warning" ]]; then
+                if [[ "$overall" != "FAILED" ]]; then overall="WARN"; fi
+                send=true
+                rc_icon="⚠️"
+                if [[ -z "$rc_error" ]]; then rc_error="catching up"; fi
               else
                 rc_icon="✅"
                 rc_error="-"
@@ -194,7 +202,7 @@ jobs:
           if [[ "$ROOTCHAIN_CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
             send=true
-          else
+          elif [[ "$overall" == "OK" ]]; then
             # Success: send only on manual trigger, or once per day for scheduled runs.
             if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
               send=true
@@ -207,6 +215,8 @@ jobs:
 
           if [[ "$overall" == "OK" ]]; then
             subject="✅ QuarkChain RPC Healthcheck OK"
+          elif [[ "$overall" == "WARN" ]]; then
+            subject="⚠️ QuarkChain RPC Healthcheck Lagging"
           else
             subject="❌ QuarkChain RPC Healthcheck FAILED"
           fi
@@ -220,7 +230,7 @@ jobs:
           echo "Schedule: ${EVENT_SCHEDULE:-N/A}" >> "$GITHUB_OUTPUT"
           echo "Run: $RUN_URL" >> "$GITHUB_OUTPUT"
           echo >> "$GITHUB_OUTPUT"
-          echo "| name | rpc_url | result | root_height | error |" >> "$GITHUB_OUTPUT"
+          echo "| name | rpc_url | result | root_height | details |" >> "$GITHUB_OUTPUT"
           echo "|---|---|---|---|---|" >> "$GITHUB_OUTPUT"
           printf "%b" "$table_rows" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -229,7 +239,7 @@ jobs:
           echo "<p>QuarkChain RPC Healthcheck: <b>${overall}</b></p>" >> "$GITHUB_OUTPUT"
           echo "<p>Event: ${EVENT_NAME}<br/>Schedule: ${EVENT_SCHEDULE:-N/A}<br/>Run: <a href=\"${RUN_URL}\">${RUN_URL}</a></p>" >> "$GITHUB_OUTPUT"
           echo "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">" >> "$GITHUB_OUTPUT"
-          echo "<thead><tr><th>name</th><th>rpc_url</th><th>result</th><th>root_height</th><th>error</th></tr></thead>" >> "$GITHUB_OUTPUT"
+          echo "<thead><tr><th>name</th><th>rpc_url</th><th>result</th><th>root_height</th><th>details</th></tr></thead>" >> "$GITHUB_OUTPUT"
           echo "<tbody>${html_rows}</tbody>" >> "$GITHUB_OUTPUT"
           echo "</table>" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
