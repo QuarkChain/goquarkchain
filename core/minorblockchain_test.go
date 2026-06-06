@@ -1363,5 +1363,46 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	}
 }
 
+// TestHasBlockMarkerWithoutBodyReturnsFalse verifies that HasBlock returns false
+// when the commit marker is present but the block body is absent — the state left
+// after an OOM/kill crash where LevelDB flushed the marker but not the body.
+//
+// Before the fix HasBlock only checked IsMinorBlockCommittedByHash (marker-only),
+// so it returned true. Sync then skipped re-downloading the block and the next
+// block failed with "unknown ancestor" permanently.
+func TestHasBlockMarkerWithoutBodyReturnsFalse(t *testing.T) {
+	_, blockchain, err := newMinorCanonical(nil, engine, 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, engine, blockchain.db, 77)[0]
+	if _, err := blockchain.InsertChain(toMinorBlocks([]*types.MinorBlock{block4}), false); err != nil {
+		t.Fatal(err)
+	}
+	h := block4.Hash()
+
+	if !blockchain.HasBlock(h) {
+		t.Fatal("HasBlock should be true after InsertChain")
+	}
+
+	// Simulate crash: body gone from rawdb, commit marker survives.
+	rawdb.DeleteBlock(blockchain.db, h)
+	blockchain.blockCache.Purge() // evict so GetMinorBlock re-reads from rawdb
+
+	if rawdb.HasBlock(blockchain.db, h) {
+		t.Fatal("body should be absent after DeleteBlock")
+	}
+	if !rawdb.HasCommitMinorBlock(blockchain.db, h) {
+		t.Fatal("commit marker should still be present")
+	}
+
+	// HasBlock must return false: marker alone is not enough.
+	if blockchain.HasBlock(h) {
+		t.Fatal("HasBlock returned true with marker present but body absent")
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set
