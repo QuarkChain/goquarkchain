@@ -3658,8 +3658,10 @@ func TestIsSameRootChainInvertedArgs(t *testing.T) {
 	rb2 := rb1.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 
 	// Correct order: long=rb2 (height 2), short=rb1 (height 1).
-	// rb2 was not added to DB so the chains differ, but the call must not crash.
-	_ = shardState.isSameRootChain(rb2, rb1)
+	// diff==1 so isSameChain compares rb2.ParentHash()==rb1.Hash() in-memory (no DB lookup).
+	if !shardState.isSameRootChain(rb2, rb1) {
+		t.Fatal("expected isSameRootChain to return true when rb2 is a direct child of rb1")
+	}
 
 	// Inverted order: long=rb1 (height 1) < short=rb2 (height 2).
 	// Without the guard this calls isSameChain which calls log.Crit → process exit.
