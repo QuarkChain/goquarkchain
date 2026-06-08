@@ -1384,7 +1384,8 @@ func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
 	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, eng, blockchain.db, 42)[0]
 	rawdb.WriteMinorBlock(blockchain.db, block4)
 	blockchain.blockCache.Purge()
-	rawdb.DeleteMinorBlock(blockchain.db, block4.Hash())
+	rawdb.DeleteBlock(blockchain.db, block4.Hash())
+	blockchain.blockCache.Purge()
 
 	// Build block 5 referencing block 4 as parent.
 	block5 := makeBlockChain(block4, 1, eng, blockchain.db, 42)[0]
@@ -1394,11 +1395,9 @@ func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
 	// Without the fix: parent == nil is false → panic on parent.NumberU64().
 	// With the fix: qkccommon.IsNil(parent) is true → returns ErrUnknownAncestor.
 	err = blockchain.validator.ValidateBlock(block5, false)
-	if err == nil {
-		t.Fatal("expected error for missing parent, got nil")
+	if !errors.Is(err, consensus.ErrUnknownAncestor) {
+		t.Fatalf("expected ErrUnknownAncestor, got %v", err)
 	}
-	// Any non-panic error is acceptable; ErrUnknownAncestor is the expected path.
-	t.Logf("got expected error (no panic): %v", err)
 }
 
 //TODO
