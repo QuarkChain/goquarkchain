@@ -70,7 +70,7 @@ var deserdata = []testDataForDeserialize{
 	{input: "00", ptr: new([]uint), value: []uint{}},
 	{input: "080102030405060708", ptr: new([]uint8), value: []uint8{1, 2, 3, 4, 5, 6, 7, 8}},
 	{input: "080000000100000002000000030000000400000005000000060000000700000008", ptr: new([]uint32), value: []uint32{1, 2, 3, 4, 5, 6, 7, 8}},
-	{input: "050102", ptr: new([]uint8), error: "deser: buffer is shorter than expected"},
+	{input: "050102", ptr: new([]uint8), error: "deser: length 5 exceeds remaining buffer 2 bytes"},
 
 	// arrays
 	{input: "0102030405", ptr: new([5]uint8), value: [5]uint8{1, 2, 3, 4, 5}},
@@ -82,21 +82,21 @@ var deserdata = []testDataForDeserialize{
 	{input: "0101", ptr: new([]byte), value: []byte{1}},
 	{input: "00", ptr: new([]byte), value: []byte{}},
 	{input: "0D6162636465666768696A6B6C6D", ptr: new([]byte), value: []byte("abcdefghijklm")},
-	{input: "0D0102", ptr: new([]byte), error: "deser: buffer is shorter than expected"},
+	{input: "0D0102", ptr: new([]byte), error: "deser: length 13 exceeds remaining buffer 2 bytes"},
 
 	// byte slices, strings
 	{input: "00", ptr: new([]byte), value: []byte{}},
 	{input: "017E", ptr: new([]byte), value: []byte{0x7E}},
 	{input: "0180", ptr: new([]byte), value: []byte{0x80}},
 	{input: "03010203", ptr: new([]byte), value: []byte{1, 2, 3}},
-	{input: "04010203", ptr: new([]byte), error: "deser: buffer is shorter than expected"},
+	{input: "04010203", ptr: new([]byte), error: "deser: length 4 exceeds remaining buffer 3 bytes"},
 
 	//SerializableList interface
 	{input: "00000000", ptr: new(LargeBytes), value: LargeBytes{[]byte{}}},
 	{input: "000000017E", ptr: new(LargeBytes), value: LargeBytes{[]byte{0x7E}}},
 	{input: "0000000180", ptr: new(LargeBytes), value: LargeBytes{[]byte{0x80}}},
 	{input: "00000003010203", ptr: new(LargeBytes), value: LargeBytes{[]byte{1, 2, 3}}},
-	{input: "03010203", ptr: new(LargeBytes), error: "deser: buffer is shorter than expected for serialize.LargeBytes.Value"},
+	{input: "03010203", ptr: new(LargeBytes), error: "deser: length 50397699 exceeds remaining buffer 0 bytes for serialize.LargeBytes.Value"},
 
 	// byte arrays
 	{input: "00", ptr: new([0]byte), value: [0]byte{}},
@@ -107,18 +107,18 @@ var deserdata = []testDataForDeserialize{
 	// strings
 	{input: "0000000100", ptr: new(string), value: "\000"},
 	{input: "0000000D6162636465666768696A6B6C6D", ptr: new(string), value: "abcdefghijklm"},
-	{input: "0D6162636465666768696A6B6C6D", ptr: new(string), error: "deser: buffer is shorter than expected"},
+	{input: "0D6162636465666768696A6B6C6D", ptr: new(string), error: "deser: length 224485987 exceeds remaining buffer 10 bytes"},
 
 	// big ints
 	{input: "0101", ptr: new(*big.Int), value: big.NewInt(1)},
 	{input: "09FFFFFFFFFFFFFFFFFF", ptr: new(*big.Int), value: veryBigInt},
 	{input: "0110", ptr: new(big.Int), value: *big.NewInt(16)}, // non-pointer also works
-	{input: "0210", ptr: new(big.Int), error: "deser: buffer is shorter than expected"},
+	{input: "0210", ptr: new(big.Int), error: "deser: length 2 exceeds remaining buffer 1 bytes"},
 
 	// structs
 	{input: "0301020300", ptr: new(structForTest), value: newStructForTest(&[]byte{1, 2, 3}, nil)},
 	{input: "030102030103040506", ptr: new(structForTest), value: newStructForTest(&[]byte{1, 2, 3}, &[]byte{4, 5, 6})},
-	{input: "0301020303040506", ptr: new(structForTest), error: "deser: buffer is shorter than expected for serialize.structForTest.To"},
+	{input: "0301020303040506", ptr: new(structForTest), error: "deser: length 4 exceeds remaining buffer 2 bytes for serialize.structForTest.To"},
 
 	// structs
 	{
@@ -293,4 +293,48 @@ func unhex(str string) []byte {
 		panic(fmt.Sprintf("invalid hex string: %q", str))
 	}
 	return b
+}
+
+// sliceLenVictim mirrors the P2P command types (e.g. HelloCmd.ChainMaskList)
+// that encode a slice length in 4 bytes.
+type sliceLenVictim struct {
+	List []uint32 `bytesizeofslicelen:"4"`
+}
+
+// TestDeserializeRejectsOversizedSliceLength is a regression test for an
+// OOM/DoS: a malicious length prefix must be rejected before the decoder
+// allocates a slice of that size. Previously deserializeList called
+// reflect.MakeSlice(vlen) before reading any element, so a tiny message
+// declaring vlen=0xFFFFFFFF forced a multi-GB allocation.
+func TestDeserializeRejectsOversizedSliceLength(t *testing.T) {
+	// 4-byte length 0xFFFFFFFF (~4.29 billion) with no element bytes following.
+	input := []byte{0xFF, 0xFF, 0xFF, 0xFF}
+
+	var v sliceLenVictim
+	err := Deserialize(NewByteBuffer(input), &v)
+	if err == nil {
+		t.Fatal("expected error for oversized slice length, got nil (allocation guard missing)")
+	}
+	if !strings.Contains(err.Error(), "exceeds remaining buffer") {
+		t.Fatalf("expected length-guard error, got: %v", err)
+	}
+}
+
+// TestDeserializeValidSliceStillWorks ensures the length guard does not reject
+// well-formed input whose declared length matches the bytes provided.
+func TestDeserializeValidSliceStillWorks(t *testing.T) {
+	// length = 2, then two uint32 values (4 bytes each): 1 and 2.
+	input := []byte{
+		0x00, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x02,
+	}
+
+	var v sliceLenVictim
+	if err := Deserialize(NewByteBuffer(input), &v); err != nil {
+		t.Fatalf("unexpected error decoding valid slice: %v", err)
+	}
+	if !reflect.DeepEqual(v.List, []uint32{1, 2}) {
+		t.Fatalf("value mismatch: got %#v want [1 2]", v.List)
+	}
 }

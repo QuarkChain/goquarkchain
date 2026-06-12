@@ -132,3 +132,18 @@ func TestReadCrossShardTransactionDepositList(t *testing.T) {
 	}
 
 }
+
+// TestCrossShardTransactionDepositListRejectsOversizedLength is a regression
+// test for an OOM/DoS: the deposit-count prefix must be validated against the
+// remaining buffer before make() allocates the slice. The 4-byte prefix encodes
+// version=1 in the top byte and size=MaxUint24 (~16.7M) in the low 24 bits, with
+// no element bytes following. Without the guard this forces a ~134MB allocation
+// (16.7M * 8-byte pointers) before a single element is read.
+func TestCrossShardTransactionDepositListRejectsOversizedLength(t *testing.T) {
+	input := []byte{0x01, 0xFF, 0xFF, 0xFF}
+
+	d := NewCrossShardTransactionDepositList(nil)
+	err := serialize.DeserializeFromBytes(input, d)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds remaining buffer")
+}
