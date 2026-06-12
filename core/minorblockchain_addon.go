@@ -72,26 +72,26 @@ func powerBigInt(data *big.Int, p uint64) *big.Int {
 
 func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances {
 	epoch := height / m.shardConfig.EpochInterval
-	cache, ok := m.coinbaseAmountCache[epoch]
+	cache, ok := m.epochDataCache[epoch]
 	if ok {
 		return cache.CoinbaseAmount.Copy()
 	}
 	m.calcCoinbaseAmountByHeight(epoch)
-	cache, _ = m.coinbaseAmountCache[epoch]
+	cache, _ = m.epochDataCache[epoch]
 	return cache.CoinbaseAmount.Copy()
 }
 
-func (m *MinorBlockChain) DecayByHeightAndTime(height uint64, time uint64) big.Int {
+func (m *MinorBlockChain) GetStakePerBlock(height uint64, time uint64) *big.Int {
 	if m.clusterConfig.Quarkchain.EnablePoswStakingDecayTimestamp == 0 || time < m.clusterConfig.Quarkchain.EnablePoswStakingDecayTimestamp {
-		return *m.shardConfig.PoswConfig.TotalStakePerBlock
+		return m.shardConfig.PoswConfig.TotalStakePerBlock
 	}
 	epoch := height / m.shardConfig.EpochInterval
-	cache, ok := m.coinbaseAmountCache[epoch]
+	cache, ok := m.epochDataCache[epoch]
 	if ok {
 		return cache.StakePreBlock
 	}
 	m.calcCoinbaseAmountByHeight(epoch)
-	cache, _ = m.coinbaseAmountCache[epoch]
+	cache, _ = m.epochDataCache[epoch]
 	return cache.StakePreBlock
 }
 
@@ -109,9 +109,9 @@ func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
 	delayData := new(big.Int).Mul(value, decayNumerator)
 	delayData = new(big.Int).Div(delayData, decayDenominator)
 
-	m.coinbaseAmountCache[epoch] = CoinbaseAmountAboutHeight{
+	m.epochDataCache[epoch] = &MinorEpochDataCache{
 		CoinbaseAmount: balances,
-		StakePreBlock:  *delayData,
+		StakePreBlock:  delayData,
 	}
 }
 
@@ -1846,7 +1846,7 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	stakePreBlock := m.DecayByHeightAndTime(mBlock.NumberU64(), mBlock.Time())
+	stakePreBlock := m.GetStakePerBlock(mBlock.NumberU64(), mBlock.Time())
 	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, stakePreBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
@@ -1871,7 +1871,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
-	stakePreBlock := m.DecayByHeightAndTime(m.CurrentBlock().NumberU64(), m.CurrentBlock().Time())
+	stakePreBlock := m.GetStakePerBlock(m.CurrentBlock().NumberU64(), m.CurrentBlock().Time())
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address, stakePreBlock)
 	return
 }
