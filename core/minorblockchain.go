@@ -317,22 +317,28 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
 	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
-	// Rewind the header chain, deleting all block bodies until then
+	// Rewind the header chain. Block bodies above the new head are preserved:
+	// they sit above currentBlock, so reRunBlockWithState never touches them,
+	// but sync may re-insert them later and the body is already on disk.
+	// Only the commit marker and canonical-hash mapping are removed so that
+	// HasBlock returns false and the blocks are re-downloaded if needed.
+	// Receipts are also dropped; they are regenerated on re-insertion.
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
-		rawdb.DeleteMinorBlock(batch, block.Hash())
+		preBlock := m.GetMinorBlock(block.ParentHash())
+		if preBlock == nil {
+			return fmt.Errorf("Rewind block missing parent: %d, hash: %s", block.NumberU64(), block.Hash().Hex())
+		}
+		rawdb.DeleteReceipts(batch, block.Hash())
+		rawdb.DeleteMinorBlockCommitStatus(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(m.GetBlock(block.ParentHash()))
+		m.currentBlock.Store(preBlock)
 	}
 	batch.Write()
-	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
-			// Rewound state missing, rolled back to before pivot, reset to genesis
-			m.currentBlock.Store(m.genesisBlock)
-		}
-	}
-
-	// If either blocks reached nil, reset to the genesis state
+	// Do NOT reset currentBlock to genesis when state is missing here.
+	// InitFromRootBlock calls reRunBlockWithState to rebuild missing state before
+	// calling setHead; resetting to genesis would undo that work and leave the
+	// chain stuck at height 0. The missing-state case is handled by the caller.
 	if currentBlock := m.CurrentBlock(); currentBlock == nil {
 		m.currentBlock.Store(m.genesisBlock)
 	}
@@ -525,8 +531,12 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 // Note, this function assumes that the `mu` mutex is held!
 func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	// Add the block to the canonical chain number scheme and mark as the head
-	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
-	rawdb.WriteHeadBlockHash(m.db, block.Hash())
+	batch := m.db.NewBatch()
+	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
+	rawdb.WriteHeadBlockHash(batch, block.Hash())
+	if err := batch.Write(); err != nil {
+		log.Error(m.logInfo, "Failed to write head block hash to database", "hash", block.Hash(), "number", block.NumberU64(), "err", err)
+	}
 
 	m.currentBlock.Store(block)
 }
@@ -537,8 +547,12 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 }
 
 // HasBlock checks if a block is fully present in the database or not.
+// A block is considered fully present only when both its commit marker and
+// its body exist in rawdb. A commit marker without a body can occur after a
+// crash (OOM/kill) where the marker persisted but the body was never flushed,
+// and would cause "unknown ancestor" errors in subsequent syncs.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return m.IsMinorBlockCommittedByHash(hash)
+	return m.IsMinorBlockCommittedByHash(hash) && rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -1358,13 +1372,13 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
-		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.ParentHash()) {
+		for ; !qkcCommon.IsNil(oldBlock) && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.ParentHash()) {
 			oldChain = append(oldChain, oldBlock)
 			collectLogs(oldBlock.Hash())
 		}
 	} else {
 		// reduce new chain and append new chain blocks for inserting later on
-		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = m.GetBlock(newBlock.ParentHash()) {
+		for ; !qkcCommon.IsNil(newBlock) && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = m.GetBlock(newBlock.ParentHash()) {
 			newChain = append(newChain, newBlock)
 		}
 	}
@@ -1412,12 +1426,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 
 	} else {
-		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if err := m.setHead(newBlockNumber); err != nil {
-			return err
-		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1427,6 +1437,16 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
 			return err
 		}
+	}
+
+	if len(newChain) == 0 {
+		// same-chain reorg: need to delete old chain canonical hashes since
+		// insert() only writes newBlock's canonical hash, not delete old ones
+		for i := len(oldChain) - 1; i >= 0; i-- {
+			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
+		}
+		m.insert(newBlock.(*types.MinorBlock))
+		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
 	}
 
 	batch.Write()

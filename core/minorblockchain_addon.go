@@ -377,6 +377,9 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash 
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock) bool {
+	if long.NumberU64() < short.NumberU64() {
+		return false
+	}
 	f := func(hash common.Hash) common.Hash {
 		if b := m.GetRootBlockByHash(hash); b == nil {
 			return common.Hash{}
@@ -493,7 +496,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		return ErrMinorBlockIsNil
 	}
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
-		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
+		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number,
+		"currentBlock", m.CurrentBlock().NumberU64())
 	var err error
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
@@ -539,9 +543,10 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)
-		block = m.GetMinorBlock(block.ParentHash())
+		parentHash := block.ParentHash()
+		block = m.GetMinorBlock(parentHash)
 		if qkcCommon.IsNil(block) {
-			return fmt.Errorf("missing block %d [%x]", block.NumberU64(), block.Hash().String())
+			return fmt.Errorf("missing block with parent hash %x", parentHash)
 		}
 	}
 
@@ -1091,8 +1096,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
 			//# TODO: shardHeader might not be the tip of the longest chain
 			//# need to switch to the tip of the longest chain
-			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
-			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
+			newTip := m.GetMinorBlock(shardHeader.Hash())
+			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", newTip == nil)
+			if newTip != nil {
+				m.currentBlock.Store(newTip)
+			}
 		}
 	}
 
