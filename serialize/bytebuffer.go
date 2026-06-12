@@ -81,6 +81,14 @@ func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 		size = (size << 8) | int(b[i])
 	}
 
+	// Guard against malicious length prefixes: a length can never exceed the
+	// number of bytes left in the buffer (each list element / byte consumes at
+	// least one byte). Reject here, before any caller allocates based on it, so
+	// an attacker-controlled length field cannot trigger a huge allocation/OOM.
+	if size > bb.Remaining() {
+		return 0, fmt.Errorf("deser: length %d exceeds remaining buffer %d bytes", size, bb.Remaining())
+	}
+
 	return size, nil
 }
 
