@@ -377,6 +377,9 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash 
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IBlock, short types.IBlock) bool {
+	if long.NumberU64() < short.NumberU64() {
+		return false
+	}
 	f := func(hash common.Hash) common.Hash {
 		if b := m.GetRootBlockByHash(hash); b == nil {
 			return common.Hash{}
