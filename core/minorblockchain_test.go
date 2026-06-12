@@ -1363,5 +1363,42 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	}
 }
 
+// TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor verifies that
+// VerifyHeader does not panic when the parent block body is absent from rawdb.
+//
+// GetBlock returns a typed-nil types.IBlock when the underlying *MinorBlock
+// is nil. The old guard "parent == nil" evaluated to false for a typed-nil
+// (Go interface: non-nil type field + nil pointer field), so execution fell
+// through to parent.NumberU64() and crashed. The fix uses qkccommon.IsNil().
+func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
+	eng := &consensus.FakeEngine{}
+	_, blockchain, err := newMinorCanonical(nil, eng, 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	// Build block 4 and write only its body to rawdb (no canonical insert),
+	// then delete the body to simulate the crash state: parent hash referenced
+	// but body absent.
+	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, eng, blockchain.db, 42)[0]
+	rawdb.WriteMinorBlock(blockchain.db, block4)
+	blockchain.blockCache.Purge()
+	rawdb.DeleteBlock(blockchain.db, block4.Hash())
+	blockchain.blockCache.Purge()
+
+	// Build block 5 referencing block 4 as parent.
+	block5 := makeBlockChain(block4, 1, eng, blockchain.db, 42)[0]
+
+	// ValidateBlock calls engine.VerifyHeader which calls chain.GetBlock(block4.Hash()).
+	// Body is absent → GetMinorBlock returns nil → GetBlock returns typed-nil IBlock.
+	// Without the fix: parent == nil is false → panic on parent.NumberU64().
+	// With the fix: qkccommon.IsNil(parent) is true → returns ErrUnknownAncestor.
+	err = blockchain.validator.ValidateBlock(block5, false)
+	if !errors.Is(err, consensus.ErrUnknownAncestor) {
+		t.Fatalf("expected ErrUnknownAncestor, got %v", err)
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set
