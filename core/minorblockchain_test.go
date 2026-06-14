@@ -1363,5 +1363,93 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	}
 }
 
+// TestInsertChainForDepositsKnownBlockReturnsEmptyXshard verifies that
+// InsertChainForDeposits returns an empty xshard list (len=0) and no error when
+// it does not newly insert a block, and leaves the chain tip intact.
+//
+// This pins down the real return shape (empty xshard, nil error) that the
+// shard-layer Bug 3 handling assumes. The cluster/shard tests fake that return
+// value via a seam; this test proves the shape is genuine, not invented.
+//
+// Scope: this exercises the ErrKnownBlock path (re-inserting an already-committed
+// block). In ShardBackend.AddBlockListForSync an already-committed block is
+// short-circuited earlier (BLOCK_COMMITTED -> continue), so the Bug 3
+// guard/continue lines are actually reached via the ErrPrunedAncestor ->
+// insertSidechain path. Direct coverage of those lines lives in
+// TestAddBlockListForSync_ContinuesAfterCommittedEmptyXshard and
+// TestAddBlockListForSync_ErrorsOnNonCommittedEmptyXshard.
+func TestInsertChainForDepositsKnownBlockReturnsEmptyXshard(t *testing.T) {
+	_, blockchain, err := newMinorCanonical(nil, engine, 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, engine, blockchain.db, 11)[0]
+
+	// First insert: succeeds, returns 1 xshard entry.
+	_, xshardLst, err := blockchain.InsertChainForDeposits(toMinorBlocks([]*types.MinorBlock{block4}), false)
+	if err != nil {
+		t.Fatalf("first insert failed: %v", err)
+	}
+	if len(xshardLst) != 1 {
+		t.Fatalf("first insert: expected 1 xshard entry, got %d", len(xshardLst))
+	}
+
+	// Second insert of same block: already known, must return empty xshard, no error.
+	_, xshardLst2, err2 := blockchain.InsertChainForDeposits(toMinorBlocks([]*types.MinorBlock{block4}), false)
+	if err2 != nil {
+		t.Fatalf("second insert (known block) returned error: %v", err2)
+	}
+	if len(xshardLst2) != 0 {
+		t.Fatalf("second insert: expected empty xshard for known block, got len=%d", len(xshardLst2))
+	}
+
+	// The chain tip must remain at block4 (not rolled back or corrupted).
+	if blockchain.CurrentBlock().Hash() != block4.Hash() {
+		t.Fatalf("chain tip changed after re-inserting known block")
+	}
+}
+
+// TestSetHeadDeletesBodyAndCommitMarker pins the invariant the Bug 1 fix relies
+// on: SetHead removes the block body and its commit marker together (one batch,
+// under chainmu), so a single writer can never observe marker-present/body-absent.
+//
+// The shard-layer race tests exercise this concurrently (and need -race); this
+// test pins it deterministically so a regression (e.g. DeleteMinorBlock no longer
+// clearing the commit status) fails here, at the layer that owns the behavior.
+// It also confirms the complementary half of Bug 1: InsertChainForDeposits writes
+// the commit marker internally, so the shard layer no longer needs to.
+func TestSetHeadDeletesBodyAndCommitMarker(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	genesisNum := blockchain.CurrentBlock().NumberU64()
+	block := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, 11)[0]
+
+	if _, _, err := blockchain.InsertChainForDeposits(toMinorBlocks([]*types.MinorBlock{block}), false); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	// Precondition: InsertChainForDeposits wrote both body and marker.
+	if !rawdb.HasBlock(db, block.Hash()) || !rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Fatalf("precondition: body+marker should exist after insert (body=%v marker=%v)",
+			rawdb.HasBlock(db, block.Hash()), rawdb.HasCommitMinorBlock(db, block.Hash()))
+	}
+
+	if err := blockchain.SetHead(genesisNum); err != nil {
+		t.Fatalf("SetHead: %v", err)
+	}
+
+	// Both must be gone — never marker-present/body-absent.
+	hasBody := rawdb.HasBlock(db, block.Hash())
+	hasMarker := rawdb.HasCommitMinorBlock(db, block.Hash())
+	if hasBody || hasMarker {
+		t.Errorf("after SetHead: body=%v marker=%v, want both false", hasBody, hasMarker)
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set

@@ -399,7 +399,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -413,6 +412,13 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	return nil
 }
+
+// insertChainForDeposits is a test seam over (*core.MinorBlockChain).InsertChainForDeposits.
+// AddBlockListForSync goes through this variable so tests can reproduce the two
+// empty-xshard outcomes (pruned-ancestor sidechain commit, and procInterrupt
+// shutdown) without constructing a 128-block pruned chain. Production code never
+// reassigns it.
+var insertChainForDeposits = (*core.MinorBlockChain).InsertChainForDeposits
 
 // Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
 //
@@ -443,14 +449,22 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+		_, xshardLst, err := insertChainForDeposits(s.MinorBlockChain, []types.IBlock{block}, false)
 		if err != nil {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
 		}
 		if len(xshardLst) != 1 {
+			// Two cases produce an empty xshard list:
+			// 1. ErrPrunedAncestor → insertSidechain: block committed inside insertSidechain.
+			//    Continue so the rest of the batch is processed.
+			// 2. procInterrupt (chain shutting down): block not committed.
+			//    Return error so the caller retries after the node is ready.
+			if s.getBlockCommitStatusByHash(blockHash) != BLOCK_COMMITTED {
+				return fmt.Errorf("InsertChainForDeposits returned empty xshard for non-committed block %d", block.NumberU64())
+			}
 			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			return nil
+			continue
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
@@ -469,7 +483,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header.Hash())
 	}
 	return nil
