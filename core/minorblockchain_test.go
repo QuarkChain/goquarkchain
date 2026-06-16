@@ -214,8 +214,8 @@ func TestMinorLastBlock(t *testing.T) {
 	}
 }
 
-//TestMinors that given a starting canonical chain of a given size, it can be extended
-//with various length chains.
+// TestMinors that given a starting canonical chain of a given size, it can be extended
+// with various length chains.
 func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
@@ -241,8 +241,8 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 	testMinorFork(t, processor, length, 10, full, better)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating shorter
-//forks do not take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating shorter
+// forks do not take canonical ownership.
 func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
@@ -270,8 +270,8 @@ func testMinorShorterFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 4, full, worse)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating longer
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating longer
+// forks do take canonical ownership.
 func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
@@ -299,9 +299,8 @@ func testMinorLongerFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 8, full, better)
 }
 
-//
-//TestMinors that given a starting canonical chain of a given size, creating equal
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating equal
+// forks do take canonical ownership.
 func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
@@ -358,9 +357,8 @@ func testMinorBrokenChain(t *testing.T, full bool) {
 	}
 }
 
-//
-//TestMinors that reorganising a long difficult chain after a short easy one
-//overwrites the canonical numbers and links in the database.
+// TestMinors that reorganising a long difficult chain after a short easy one
+// overwrites the canonical numbers and links in the database.
 func TestMinorReorgLongBlocks(t *testing.T) { testMinorReorgLong(t, true) }
 
 func testMinorReorgLong(t *testing.T, full bool) {
@@ -1360,6 +1358,94 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node == nil {
 			t.Fatalf("competitor %d: competing chain state missing", i)
 		}
+	}
+}
+
+// TestRollbackToBlock verifies that RollbackToBlock removes all blocks above
+// the target from the database and correctly restores currentBlock to target.
+func TestRollbackToBlock(t *testing.T) {
+	_, blockchain, err := newMinorCanonical(nil, engine, 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	blocks := makeBlockChain(blockchain.CurrentBlock(), 2, engine, blockchain.db, 42)
+	block4, block5 := blocks[0], blocks[1]
+	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), false); err != nil {
+		t.Fatal(err)
+	}
+	if blockchain.CurrentBlock().Hash() != block5.Hash() {
+		t.Fatalf("expected current block to be block5 after insert")
+	}
+
+	block3Hash := block4.ParentHash()
+	if err := blockchain.RollbackToBlock(block3Hash); err != nil {
+		t.Fatalf("RollbackToBlock failed: %v", err)
+	}
+
+	if blockchain.CurrentBlock().Hash() != block3Hash {
+		t.Fatalf("after rollback currentBlock = %x, want %x", blockchain.CurrentBlock().Hash(), block3Hash)
+	}
+	if rawdb.HasBlock(blockchain.db, block4.Hash()) {
+		t.Fatal("block4 body still present after rollback")
+	}
+	if rawdb.HasBlock(blockchain.db, block5.Hash()) {
+		t.Fatal("block5 body still present after rollback")
+	}
+	if rawdb.HasCommitMinorBlock(blockchain.db, block4.Hash()) {
+		t.Fatal("block4 commit marker still present after rollback")
+	}
+	if rawdb.HasCommitMinorBlock(blockchain.db, block5.Hash()) {
+		t.Fatal("block5 commit marker still present after rollback")
+	}
+	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, block4.NumberU64()) == block4.Hash() {
+		t.Fatal("block4 canonical hash still present after rollback")
+	}
+	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, block5.NumberU64()) == block5.Hash() {
+		t.Fatal("block5 canonical hash still present after rollback")
+	}
+
+	// Re-insertion after rollback must succeed.
+	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), false); err != nil {
+		t.Fatalf("re-insert after rollback failed: %v", err)
+	}
+	if blockchain.CurrentBlock().Hash() != block5.Hash() {
+		t.Fatalf("expected current block to be block5 after re-insert")
+	}
+}
+
+// TestSameChainReorgClearsOldCanonicalHashes verifies that a same-chain reorg
+// (newBlock is already canonical but at a lower height than currentBlock)
+// clears the canonical hash mappings for the displaced blocks.
+func TestSameChainReorgClearsOldCanonicalHashes(t *testing.T) {
+	_, blockchain, err := newMinorCanonical(nil, engine, 5, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	// Record block hashes at heights 4 and 5 before reorg.
+	block5 := blockchain.GetBlockByNumber(5).(*types.MinorBlock)
+	block4 := blockchain.GetBlockByNumber(4).(*types.MinorBlock)
+	block3 := blockchain.GetBlockByNumber(3).(*types.MinorBlock)
+
+	// Trigger same-chain reorg directly: block3 is an ancestor of block5 on
+	// the same chain, so reorg() will see oldChain=[B5,B4] and newChain=[].
+	if err := blockchain.reorg(block5, block3); err != nil {
+		t.Fatalf("same-chain reorg failed: %v", err)
+	}
+
+	// After reorg to block3, canonical hashes for 4 and 5 must be cleared.
+	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, 4) == block4.Hash() {
+		t.Fatal("canonical hash at height 4 should be cleared after same-chain reorg")
+	}
+	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, 5) == block5.Hash() {
+		t.Fatal("canonical hash at height 5 should be cleared after same-chain reorg")
+	}
+	// currentBlock must now be block3.
+	if blockchain.CurrentBlock().Hash() != block3.Hash() {
+		t.Fatalf("currentBlock = %x, want block3 %x", blockchain.CurrentBlock().Hash(), block3.Hash())
 	}
 }
 

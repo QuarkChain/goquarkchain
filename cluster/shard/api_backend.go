@@ -378,12 +378,18 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead.Number)
+		log.Warn(s.logInfo+" BroadcastXshardTxList failed, rolling back to prev head", "number", block.NumberU64(), "err", err)
+		if rbErr := s.MinorBlockChain.RollbackToBlock(currHead.Hash()); rbErr != nil {
+			log.Error(s.logInfo, "Failed to rollback after BroadcastXshardTxList error", "err", rbErr)
+		}
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
-		s.setHead(currHead.Number)
+		log.Warn(s.logInfo+" GetShardStats failed, rolling back to prev head", "number", block.NumberU64(), "err", err)
+		if rbErr := s.MinorBlockChain.RollbackToBlock(currHead.Hash()); rbErr != nil {
+			log.Error(s.logInfo, "Failed to rollback after GetShardStats error", "err", rbErr)
+		}
 		return err
 	}
 
@@ -396,18 +402,19 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
-		s.setHead(currHead.Number)
+		log.Warn(s.logInfo+" SendMinorBlockToMaster failed, rolling back to prev head", "number", block.NumberU64(), "err", err)
+		if rbErr := s.MinorBlockChain.RollbackToBlock(currHead.Hash()); rbErr != nil {
+			log.Error(s.logInfo, "Failed to rollback after SendMinorBlockToMaster error", "err", rbErr)
+		}
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead.Number)
-			return err
+			log.Warn(s.logInfo+" broadcastNewTip failed, peers will sync later", "number", block.NumberU64(), "err", err)
 		}
 	}
 
@@ -430,6 +437,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return nil
 	}
 
+	prevHead := s.MinorBlockChain.CurrentBlock()
 	var (
 		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
 		uncommittedBlockHeaderList = make([]*types.MinorBlockHeader, 0, len(blockLst))
@@ -457,8 +465,11 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
 	}
-	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
+		log.Warn(s.logInfo+" BatchBroadcastXshardTxList failed, rolling back", "err", err)
+		if rbErr := s.MinorBlockChain.RollbackToBlock(prevHead.Hash()); rbErr != nil {
+			log.Error(s.logInfo, "Failed to rollback AddBlockListForSync", "err", rbErr)
+		}
 		return err
 	}
 
@@ -466,6 +477,10 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		MinorBlockHeaderList: uncommittedBlockHeaderList,
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+		log.Warn(s.logInfo+" SendMinorBlockHeaderListToMaster failed, rolling back", "err", err)
+		if rbErr := s.MinorBlockChain.RollbackToBlock(prevHead.Hash()); rbErr != nil {
+			log.Error(s.logInfo, "Failed to rollback AddBlockListForSync", "err", rbErr)
+		}
 		return err
 	}
 	for _, header := range uncommittedBlockHeaderList {
@@ -526,12 +541,6 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 
 	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip.Header(), s.branch.Value)
 	return
-}
-
-func (s *ShardBackend) setHead(head uint64) {
-	if err := s.MinorBlockChain.SetHead(head); err != nil {
-		panic(err)
-	}
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
