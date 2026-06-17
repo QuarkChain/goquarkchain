@@ -1361,8 +1361,9 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	}
 }
 
-// TestRollbackToBlock verifies that RollbackToBlock removes all blocks above
-// the target from the database and correctly restores currentBlock to target.
+// TestRollbackToBlock verifies that RollbackToBlock clears commit markers and
+// canonical hashes for blocks above the target, keeps block bodies intact,
+// and correctly restores currentBlock to target.
 func TestRollbackToBlock(t *testing.T) {
 	_, blockchain, err := newMinorCanonical(nil, engine, 3, true)
 	if err != nil {
@@ -1387,23 +1388,26 @@ func TestRollbackToBlock(t *testing.T) {
 	if blockchain.CurrentBlock().Hash() != block3Hash {
 		t.Fatalf("after rollback currentBlock = %x, want %x", blockchain.CurrentBlock().Hash(), block3Hash)
 	}
-	if rawdb.HasBlock(blockchain.db, block4.Hash()) {
-		t.Fatal("block4 body still present after rollback")
+	// Block bodies must still be present (not deleted by rollback).
+	if !rawdb.HasBlock(blockchain.db, block4.Hash()) {
+		t.Fatal("block4 body should still be present after rollback")
 	}
-	if rawdb.HasBlock(blockchain.db, block5.Hash()) {
-		t.Fatal("block5 body still present after rollback")
+	if !rawdb.HasBlock(blockchain.db, block5.Hash()) {
+		t.Fatal("block5 body should still be present after rollback")
 	}
+	// Commit markers must be cleared.
 	if rawdb.HasCommitMinorBlock(blockchain.db, block4.Hash()) {
-		t.Fatal("block4 commit marker still present after rollback")
+		t.Fatal("block4 commit marker should be cleared after rollback")
 	}
 	if rawdb.HasCommitMinorBlock(blockchain.db, block5.Hash()) {
-		t.Fatal("block5 commit marker still present after rollback")
+		t.Fatal("block5 commit marker should be cleared after rollback")
 	}
+	// Canonical hashes must be cleared.
 	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, block4.NumberU64()) == block4.Hash() {
-		t.Fatal("block4 canonical hash still present after rollback")
+		t.Fatal("block4 canonical hash should be cleared after rollback")
 	}
 	if rawdb.ReadCanonicalHash(blockchain.db, rawdb.ChainTypeMinor, block5.NumberU64()) == block5.Hash() {
-		t.Fatal("block5 canonical hash still present after rollback")
+		t.Fatal("block5 canonical hash should be cleared after rollback")
 	}
 
 	// Re-insertion after rollback must succeed.

@@ -730,33 +730,38 @@ func (m *MinorBlockChain) procFutureBlocks() {
 }
 
 // RollbackToBlock rolls back the chain so that the block with targetHash
-// becomes the new current head. All blocks above targetHash (up to the
-// current tip) are removed from the database — body, receipts, commit
-// marker, and canonical hash mapping — so that HasBlock returns false
-// for each removed block and they can be re-inserted later.
+// becomes the new current head. Blocks above targetHash have their commit
+// marker and canonical hash mapping removed so they can be re-inserted later.
+// Block body and receipts are kept to avoid re-executing state.
 //
-// Unlike SetHead, this method does not acquire chainmu or purge caches.
-// It is intended for fast rollback in the shard layer (e.g. when
-// broadcasting xshard txs fails after a block was inserted). The caller
-// must hold the shard's mu lock to prevent concurrent insert/setHead.
+// The caller must ensure targetHash is an ancestor of the current head
+// (same chain). RollbackToBlock does not acquire chainmu; the caller must
+// hold the shard's mu lock to prevent concurrent inserts.
 func (m *MinorBlockChain) RollbackToBlock(targetHash common.Hash) error {
 	target := m.GetMinorBlock(targetHash)
 	if target == nil {
 		return fmt.Errorf("RollbackToBlock: target block %x not found", targetHash)
 	}
 
-	for cur := m.CurrentBlock(); cur != nil && cur.Hash() != targetHash; cur = m.CurrentBlock() {
-		if cur.NumberU64() < target.NumberU64() {
-			return fmt.Errorf("RollbackToBlock: overshot target %x (cur %d < target %d)", targetHash, cur.NumberU64(), target.NumberU64())
+	// Verify target is on the same chain (ancestor of current head).
+	for cur := m.CurrentBlock(); ; cur = m.GetMinorBlock(cur.ParentHash()) {
+		if cur == nil {
+			return fmt.Errorf("RollbackToBlock: target %x is not an ancestor of current head", targetHash)
 		}
+		if cur.Hash() == targetHash {
+			break
+		}
+		if cur.NumberU64() < target.NumberU64() || cur.NumberU64() == 0 {
+			return fmt.Errorf("RollbackToBlock: target %x is not an ancestor of current head", targetHash)
+		}
+	}
+
+	for cur := m.CurrentBlock(); cur != nil && cur.Hash() != targetHash; cur = m.CurrentBlock() {
 		parent := m.GetMinorBlock(cur.ParentHash())
 		if parent == nil {
 			return fmt.Errorf("RollbackToBlock: parent missing for block %d [%x]", cur.NumberU64(), cur.Hash())
 		}
-
 		batch := m.db.NewBatch()
-		rawdb.DeleteMinorBlock(batch, cur.Hash())
-		rawdb.DeleteReceipts(batch, cur.Hash())
 		rawdb.DeleteMinorBlockCommitStatus(batch, cur.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, cur.NumberU64())
 		if err := batch.Write(); err != nil {
@@ -764,6 +769,7 @@ func (m *MinorBlockChain) RollbackToBlock(targetHash common.Hash) error {
 		}
 		m.currentBlock.Store(parent)
 	}
+	rawdb.WriteHeadBlockHash(m.db, targetHash)
 	return nil
 }
 
@@ -1473,11 +1479,15 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		for i := len(oldChain) - 1; i >= 0; i-- {
 			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
 		}
-		m.insert(newBlock.(*types.MinorBlock))
-		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
 	}
 
 	batch.Write()
+
+	if len(newChain) == 0 {
+		// insert after batch.Write() so the head pointer is persisted after canonical deletes
+		m.insert(newBlock.(*types.MinorBlock))
+		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
+	}
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
