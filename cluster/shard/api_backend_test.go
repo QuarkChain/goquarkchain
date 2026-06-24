@@ -28,6 +28,18 @@ const raceIterations = 100
 
 // ── stubs ──────────────────────────────────────────────────────────────────
 
+// stubInsertChainForDeposits replaces the global insertChainForDeposits seam
+// with the provided stub for the duration of the test. The original value is
+// restored via t.Cleanup.
+//
+// IMPORTANT: Tests using this helper MUST NOT use t.Parallel(), as the seam
+// is a global variable and concurrent writes will race.
+func stubInsertChainForDeposits(t *testing.T, stub func(*core.MinorBlockChain, []types.IBlock, bool) (int, [][]*types.CrossShardTransactionDeposit, error)) {
+	orig := insertChainForDeposits
+	insertChainForDeposits = stub
+	t.Cleanup(func() { insertChainForDeposits = orig })
+}
+
 // stubConnManager is a no-op ConnManager for tests.
 // AddBlockListForSync uses BatchBroadcastXshardTxList and SendMinorBlockHeaderListToMaster;
 // AddMinorBlock uses BroadcastXshardTxList and SendMinorBlockHeaderToMaster.
@@ -412,14 +424,12 @@ func TestAddBlockListForSync_ContinuesAfterCommittedEmptyXshard(t *testing.T) {
 
 	// Simulate insertSidechain: commit the block, return an empty xshard, no error.
 	var seen []common.Hash
-	orig := insertChainForDeposits
-	defer func() { insertChainForDeposits = orig }()
-	insertChainForDeposits = func(mbc *core.MinorBlockChain, chain []types.IBlock, _ bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	stubInsertChainForDeposits(t, func(mbc *core.MinorBlockChain, chain []types.IBlock, _ bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
 		h := chain[0].Hash()
 		seen = append(seen, h)
 		mbc.CommitMinorBlockByHash(h)
 		return 0, [][]*types.CrossShardTransactionDeposit{}, nil
-	}
+	})
 
 	if err := sb.AddBlockListForSync(blocks); err != nil {
 		t.Fatalf("AddBlockListForSync: unexpected error: %v", err)
@@ -450,11 +460,9 @@ func TestAddBlockListForSync_ErrorsOnNonCommittedEmptyXshard(t *testing.T) {
 	blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
 
 	// Simulate procInterrupt: nothing inserted, block left uncommitted.
-	orig := insertChainForDeposits
-	defer func() { insertChainForDeposits = orig }()
-	insertChainForDeposits = func(_ *core.MinorBlockChain, _ []types.IBlock, _ bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	stubInsertChainForDeposits(t, func(_ *core.MinorBlockChain, _ []types.IBlock, _ bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
 		return 0, nil, nil
-	}
+	})
 
 	err := sb.AddBlockListForSync(blocks)
 	if err == nil {

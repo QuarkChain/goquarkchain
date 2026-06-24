@@ -363,7 +363,13 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 
 	if len(xshardLst) != 1 {
-		log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+		// Two cases produce an empty xshard list:
+		// 1. ErrPrunedAncestor → insertSidechain: block committed inside insertSidechain.
+		// 2. procInterrupt (chain shutting down): block not committed.
+		if s.getBlockCommitStatusByHash(block.Hash()) != BLOCK_COMMITTED {
+			return fmt.Errorf("InsertChainForDeposits returned empty xshard for non-committed block %d %s", block.NumberU64(), block.Hash().String())
+		}
+		log.Info(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 		return nil
 	}
 
@@ -461,9 +467,9 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			// 2. procInterrupt (chain shutting down): block not committed.
 			//    Return error so the caller retries after the node is ready.
 			if s.getBlockCommitStatusByHash(blockHash) != BLOCK_COMMITTED {
-				return fmt.Errorf("InsertChainForDeposits returned empty xshard for non-committed block %d", block.NumberU64())
+				return fmt.Errorf("InsertChainForDeposits returned empty xshard for non-committed block %d %s", block.NumberU64(), blockHash.String())
 			}
-			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			log.Info(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 			continue
 		}
 		s.mBPool.delBlockInPool(block.Hash())

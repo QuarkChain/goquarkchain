@@ -214,8 +214,8 @@ func TestMinorLastBlock(t *testing.T) {
 	}
 }
 
-//TestMinors that given a starting canonical chain of a given size, it can be extended
-//with various length chains.
+// TestMinors that given a starting canonical chain of a given size, it can be extended
+// with various length chains.
 func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
@@ -241,8 +241,8 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 	testMinorFork(t, processor, length, 10, full, better)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating shorter
-//forks do not take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating shorter
+// forks do not take canonical ownership.
 func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
@@ -270,8 +270,8 @@ func testMinorShorterFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 4, full, worse)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating longer
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating longer
+// forks do take canonical ownership.
 func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
@@ -299,9 +299,8 @@ func testMinorLongerFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 8, full, better)
 }
 
-//
-//TestMinors that given a starting canonical chain of a given size, creating equal
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating equal
+// forks do take canonical ownership.
 func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
@@ -358,9 +357,8 @@ func testMinorBrokenChain(t *testing.T, full bool) {
 	}
 }
 
-//
-//TestMinors that reorganising a long difficult chain after a short easy one
-//overwrites the canonical numbers and links in the database.
+// TestMinors that reorganising a long difficult chain after a short easy one
+// overwrites the canonical numbers and links in the database.
 func TestMinorReorgLongBlocks(t *testing.T) { testMinorReorgLong(t, true) }
 
 func testMinorReorgLong(t *testing.T, full bool) {
@@ -1408,6 +1406,46 @@ func TestInsertChainForDepositsKnownBlockReturnsEmptyXshard(t *testing.T) {
 	// The chain tip must remain at block4 (not rolled back or corrupted).
 	if blockchain.CurrentBlock().Hash() != block4.Hash() {
 		t.Fatalf("chain tip changed after re-inserting known block")
+	}
+}
+
+// TestSetHeadDeletesBodyAndCommitMarker pins the invariant the Bug 1 fix relies
+// on: SetHead removes the block body and its commit marker together (one batch,
+// under chainmu), so a single writer can never observe marker-present/body-absent.
+//
+// The shard-layer race tests exercise this concurrently (and need -race); this
+// test pins it deterministically so a regression (e.g. DeleteMinorBlock no longer
+// clearing the commit status) fails here, at the layer that owns the behavior.
+// It also confirms the complementary half of Bug 1: InsertChainForDeposits writes
+// the commit marker internally, so the shard layer no longer needs to.
+func TestSetHeadDeletesBodyAndCommitMarker(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	genesisNum := blockchain.CurrentBlock().NumberU64()
+	block := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, 11)[0]
+
+	if _, _, err := blockchain.InsertChainForDeposits(toMinorBlocks([]*types.MinorBlock{block}), false); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	// Precondition: InsertChainForDeposits wrote both body and marker.
+	if !rawdb.HasBlock(db, block.Hash()) || !rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Fatalf("precondition: body+marker should exist after insert (body=%v marker=%v)",
+			rawdb.HasBlock(db, block.Hash()), rawdb.HasCommitMinorBlock(db, block.Hash()))
+	}
+
+	if err := blockchain.SetHead(genesisNum); err != nil {
+		t.Fatalf("SetHead: %v", err)
+	}
+
+	// Both must be gone — never marker-present/body-absent.
+	hasBody := rawdb.HasBlock(db, block.Hash())
+	hasMarker := rawdb.HasCommitMinorBlock(db, block.Hash())
+	if hasBody || hasMarker {
+		t.Errorf("after SetHead: body=%v marker=%v, want both false", hasBody, hasMarker)
 	}
 }
 
