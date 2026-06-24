@@ -29,6 +29,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -214,8 +215,8 @@ func TestMinorLastBlock(t *testing.T) {
 	}
 }
 
-//TestMinors that given a starting canonical chain of a given size, it can be extended
-//with various length chains.
+// TestMinors that given a starting canonical chain of a given size, it can be extended
+// with various length chains.
 func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
@@ -241,8 +242,8 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 	testMinorFork(t, processor, length, 10, full, better)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating shorter
-//forks do not take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating shorter
+// forks do not take canonical ownership.
 func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
@@ -270,8 +271,8 @@ func testMinorShorterFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 4, full, worse)
 }
 
-//TestMinors that given a starting canonical chain of a given size, creating longer
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating longer
+// forks do take canonical ownership.
 func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
@@ -299,9 +300,8 @@ func testMinorLongerFork(t *testing.T, full bool) {
 	testMinorFork(t, processor, 5, 8, full, better)
 }
 
-//
-//TestMinors that given a starting canonical chain of a given size, creating equal
-//forks do take canonical ownership.
+// TestMinors that given a starting canonical chain of a given size, creating equal
+// forks do take canonical ownership.
 func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
@@ -358,9 +358,8 @@ func testMinorBrokenChain(t *testing.T, full bool) {
 	}
 }
 
-//
-//TestMinors that reorganising a long difficult chain after a short easy one
-//overwrites the canonical numbers and links in the database.
+// TestMinors that reorganising a long difficult chain after a short easy one
+// overwrites the canonical numbers and links in the database.
 func TestMinorReorgLongBlocks(t *testing.T) { testMinorReorgLong(t, true) }
 
 func testMinorReorgLong(t *testing.T, full bool) {
@@ -1360,6 +1359,44 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node == nil {
 			t.Fatalf("competitor %d: competing chain state missing", i)
 		}
+	}
+}
+
+// TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor verifies that
+// CommonEngine.VerifyHeader does not panic when the parent block is absent.
+//
+// GetBlock returns a typed-nil types.IBlock when the underlying *MinorBlock
+// is nil. The old guard "parent == nil" evaluated to false for a typed-nil
+// (Go interface: non-nil type field + nil pointer field), so execution fell
+// through to parent.NumberU64() and crashed. The fix uses qkccommon.IsNil().
+func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
+	// Use simulate engine which embeds CommonEngine, unlike FakeEngine whose
+	// VerifyHeader is a no-op. This ensures the test exercises the actual fix.
+	eng := simulate.New(nil, false, nil, 0)
+	_, blockchain, err := newMinorCanonical(nil, eng, 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	// Build block 4 and write only its header to rawdb (no body),
+	// simulating the state where parent hash is referenced but body is absent.
+	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, eng, blockchain.db, 42)[0]
+	rawdb.WriteMinorBlock(blockchain.db, block4)
+	blockchain.blockCache.Purge()
+	rawdb.DeleteBlock(blockchain.db, block4.Hash())
+	blockchain.blockCache.Purge()
+
+	// Build block 5 referencing block 4 as parent.
+	block5 := makeBlockChain(block4, 1, eng, blockchain.db, 42)[0]
+
+	// Call engine.VerifyHeader directly. It calls chain.GetBlock(block4.Hash()).
+	// Body is absent → GetMinorBlock returns nil → GetBlock returns typed-nil IBlock.
+	// Without the fix: parent == nil is false → panic on parent.NumberU64().
+	// With the fix: qkccommon.IsNil(parent) is true → returns ErrUnknownAncestor.
+	err = blockchain.engine.VerifyHeader(blockchain, block5.IHeader(), false)
+	if !errors.Is(err, consensus.ErrUnknownAncestor) {
+		t.Fatalf("expected ErrUnknownAncestor, got %v", err)
 	}
 }
 
