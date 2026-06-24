@@ -1079,7 +1079,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		return false, nil
 	}
 
+	// Hold m.mu for the entire root/minor head transition to prevent CreateBlockToMine
+	// from reading an inconsistent snapshot (new rootTip with stale currentBlock).
+	// Previously, the lock was released after updating rootTip but before rewinding
+	// currentBlock, allowing mining to observe the intermediate state and call
+	// isSameRootChain with mismatched heights.
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.rootTip = rBlock
 	if shardHeader == nil {
 		m.confirmedHeaderTip = nil
@@ -1087,7 +1094,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
 	}
 
-	m.mu.Unlock()
 	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
