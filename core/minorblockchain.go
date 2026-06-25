@@ -472,7 +472,9 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	rawdb.WriteMinorBlock(m.db, genesis)
 
 	m.genesisBlock = genesis
-	m.insert(m.genesisBlock)
+	if err := m.insert(m.genesisBlock); err != nil {
+		log.Crit(m.logInfo+" Failed to insert genesis block", "err", err)
+	}
 	m.currentBlock.Store(m.genesisBlock)
 
 	return nil
@@ -523,16 +525,17 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 // or if they are on a different side chain.
 //
 // Note, this function assumes that the `mu` mutex is held!
-func (m *MinorBlockChain) insert(block *types.MinorBlock) {
+func (m *MinorBlockChain) insert(block *types.MinorBlock) error {
 	// Add the block to the canonical chain number scheme and mark as the head
 	batch := m.db.NewBatch()
 	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(batch, block.Hash())
 	if err := batch.Write(); err != nil {
-		log.Error(m.logInfo, "Failed to write head block hash to database", "hash", block.Hash(), "number", block.NumberU64(), "err", err)
+		return fmt.Errorf("failed to write head block hash to database: %w", err)
 	}
 
 	m.currentBlock.Store(block)
+	return nil
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -731,13 +734,15 @@ func (m *MinorBlockChain) procFutureBlocks() {
 
 // RollbackToBlock rolls back the chain so that the block with targetHash
 // becomes the new current head. Blocks above targetHash have their commit
-// marker and canonical hash mapping removed so they can be re-inserted later.
-// Block body and receipts are kept to avoid re-executing state.
+// marker, tx indexes, and canonical hash mapping removed so they can be
+// re-inserted later.
 //
 // The caller must ensure targetHash is an ancestor of the current head
-// (same chain). RollbackToBlock does not acquire chainmu; the caller must
-// hold the shard's mu lock to prevent concurrent inserts.
+// (same chain).
 func (m *MinorBlockChain) RollbackToBlock(targetHash common.Hash) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+
 	target := m.GetMinorBlock(targetHash)
 	if target == nil {
 		return fmt.Errorf("RollbackToBlock: target block %x not found", targetHash)
@@ -756,19 +761,24 @@ func (m *MinorBlockChain) RollbackToBlock(targetHash common.Hash) error {
 		}
 	}
 
-	for cur := m.CurrentBlock(); cur != nil && cur.Hash() != targetHash; cur = m.CurrentBlock() {
+	// Delete commit markers, tx indexes, and canonical hashes in a single batch
+	batch := m.db.NewBatch()
+	for cur := m.CurrentBlock(); cur != nil && cur.Hash() != targetHash; cur = m.GetMinorBlock(cur.ParentHash()) {
 		parent := m.GetMinorBlock(cur.ParentHash())
 		if parent == nil {
 			return fmt.Errorf("RollbackToBlock: parent missing for block %d [%x]", cur.NumberU64(), cur.Hash())
 		}
-		batch := m.db.NewBatch()
 		rawdb.DeleteMinorBlockCommitStatus(batch, cur.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, cur.NumberU64())
-		if err := batch.Write(); err != nil {
-			return fmt.Errorf("RollbackToBlock: batch write failed: %w", err)
+		if err := m.removeTxIndexFromBlock(batch, cur); err != nil {
+			return fmt.Errorf("RollbackToBlock: failed to remove tx index for block %d [%x]: %w", cur.NumberU64(), cur.Hash(), err)
 		}
 		m.currentBlock.Store(parent)
 	}
+	if err := batch.Write(); err != nil {
+		return fmt.Errorf("RollbackToBlock: batch write failed: %w", err)
+	}
+
 	rawdb.WriteHeadBlockHash(m.db, targetHash)
 	return nil
 }
@@ -1031,7 +1041,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 
 	// Set new head.
 	if status == CanonStatTy {
-		m.insert(block)
+		if err := m.insert(block); err != nil {
+			return NonStatTy, err
+		}
 	}
 	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
@@ -1481,18 +1493,24 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 
-	batch.Write()
+	if err := batch.Write(); err != nil {
+		return fmt.Errorf("reorg: failed to write tx index deletions: %w", err)
+	}
 
 	if len(newChain) == 0 {
 		// insert after batch.Write() so the head pointer is persisted after canonical deletes
-		m.insert(newBlock.(*types.MinorBlock))
+		if err := m.insert(newBlock.(*types.MinorBlock)); err != nil {
+			return err
+		}
 		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
 	}
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
-		m.insert(newChain[i].(*types.MinorBlock))
+		if err := m.insert(newChain[i].(*types.MinorBlock)); err != nil {
+			return err
+		}
 		// write lookup entries for hash based transaction/receipt searches
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err
