@@ -539,10 +539,11 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)
-		parentHash := block.ParentHash()
+
+		childNumber, childHash, parentHash := block.Number(), block.Hash(), block.ParentHash()
 		block = m.GetMinorBlock(parentHash)
 		if qkcCommon.IsNil(block) {
-			return fmt.Errorf("missing block with parent hash %x", parentHash)
+			return fmt.Errorf("missing parent block %x for child %d (%x)", parentHash, childNumber, childHash)
 		}
 	}
 
@@ -1092,8 +1093,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
 			//# TODO: shardHeader might not be the tip of the longest chain
 			//# need to switch to the tip of the longest chain
-			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
-			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
+			newTip := m.GetMinorBlock(shardHeader.Hash())
+			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", newTip == nil)
+			if newTip != nil {
+				m.currentBlock.Store(newTip)
+			}
 		}
 	}
 
