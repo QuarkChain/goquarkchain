@@ -1398,7 +1398,7 @@ func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
 		t.Fatalf("expected ErrUnknownAncestor, got %v", err)
 	}
 }
-	
+
 // TestRollbackToBlock verifies that RollbackToBlock clears commit markers and
 // canonical hashes for blocks above the target, keeps block bodies intact,
 // and correctly restores currentBlock to target.
@@ -1488,24 +1488,6 @@ func TestSameChainReorgClearsOldCanonicalHashes(t *testing.T) {
 	// currentBlock must now be block3.
 	if blockchain.CurrentBlock().Hash() != block3.Hash() {
 		t.Fatalf("currentBlock = %x, want block3 %x", blockchain.CurrentBlock().Hash(), block3.Hash())
-	// Build block 4 and write only its header to rawdb (no body),
-	// simulating the state where parent hash is referenced but body is absent.
-	block4 := makeBlockChain(blockchain.CurrentBlock(), 1, eng, blockchain.db, 42)[0]
-	rawdb.WriteMinorBlock(blockchain.db, block4)
-	blockchain.blockCache.Purge()
-	rawdb.DeleteBlock(blockchain.db, block4.Hash())
-	blockchain.blockCache.Purge()
-
-	// Build block 5 referencing block 4 as parent.
-	block5 := makeBlockChain(block4, 1, eng, blockchain.db, 42)[0]
-
-	// Call engine.VerifyHeader directly. It calls chain.GetBlock(block4.Hash()).
-	// Body is absent → GetMinorBlock returns nil → GetBlock returns typed-nil IBlock.
-	// Without the fix: parent == nil is false → panic on parent.NumberU64().
-	// With the fix: qkccommon.IsNil(parent) is true → returns ErrUnknownAncestor.
-	err = blockchain.engine.VerifyHeader(blockchain, block5.IHeader(), false)
-	if !errors.Is(err, consensus.ErrUnknownAncestor) {
-		t.Fatalf("expected ErrUnknownAncestor, got %v", err)
 	}
 }
 
