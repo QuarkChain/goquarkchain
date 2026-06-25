@@ -322,7 +322,7 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
 		rawdb.DeleteMinorBlock(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(m.GetBlock(block.ParentHash()))
+		m.currentBlock.Store(m.GetMinorBlock(block.ParentHash()))
 	}
 	batch.Write()
 	if currentBlock := m.CurrentBlock(); currentBlock != nil {
@@ -735,7 +735,11 @@ func (m *MinorBlockChain) Rollback(chain []common.Hash) {
 		hash := chain[i]
 
 		if currentBlock := m.CurrentBlock(); currentBlock.Hash() == hash {
-			newBlock := m.GetBlock(currentBlock.ParentHash())
+			newBlock := m.GetMinorBlock(currentBlock.ParentHash())
+			if qkcCommon.IsNil(newBlock) {
+				log.Warn(m.logInfo+" Rollback: parent block not found", "current", currentBlock.Hash(), "parent", currentBlock.ParentHash())
+				continue
+			}
 			m.currentBlock.Store(newBlock)
 			rawdb.WriteHeadBlockHash(m.db, newBlock.Hash())
 		}
@@ -1358,13 +1362,13 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
-		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.ParentHash()) {
+		for ; !qkcCommon.IsNil(oldBlock) && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.ParentHash()) {
 			oldChain = append(oldChain, oldBlock)
 			collectLogs(oldBlock.Hash())
 		}
 	} else {
 		// reduce new chain and append new chain blocks for inserting later on
-		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = m.GetBlock(newBlock.ParentHash()) {
+		for ; !qkcCommon.IsNil(newBlock) && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = m.GetBlock(newBlock.ParentHash()) {
 			newChain = append(newChain, newBlock)
 		}
 	}
