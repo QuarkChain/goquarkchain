@@ -346,14 +346,34 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
 
+	blockHash := block.Hash()
+
+	// Fast path (lock-free): check if already committed or being processed
+	commitStatus := s.getBlockCommitStatusByHash(blockHash)
+	if commitStatus == BLOCK_COMMITTED {
+		return nil
+	}
+	if commitStatus == BLOCK_COMMITTING {
+		log.Debug(s.logInfo+" Block is being processed by another goroutine, skipping", "hash", blockHash.Hex())
+		return nil // Skip processing, let the other goroutine handle it
+	}
+
+	// Acquire lock and perform the actual addition
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
-	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
+
+	// Double-check after acquiring lock to avoid TOCTOU race
+	commitStatus = s.getBlockCommitStatusByHash(blockHash)
+	if commitStatus == BLOCK_COMMITTED || commitStatus == BLOCK_COMMITTING {
 		return nil
 	}
-	//TODO support BLOCK_COMMITTING
+
+	// Mark as processing (in-memory only, does not affect HasBlock)
+	s.processingBlocks.Store(blockHash, true)
+	defer s.processingBlocks.Delete(blockHash) // Ensure cleanup
+
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	log.Debug(s.logInfo, "currHead", currHead.Number)
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
@@ -399,7 +419,11 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead.Number)
 		return err
 	}
+
+	// Commit to DB (persistent state)
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
+	// processingBlocks will be auto-deleted by defer
+
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -434,31 +458,58 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
 		uncommittedBlockHeaderList = make([]*types.MinorBlockHeader, 0, len(blockLst))
 	)
+
 	for _, block := range blockLst {
 		blockHash := block.Hash()
 		if block.Branch().Value != s.branch.Value {
 			continue
 		}
-		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+
+		commitStatus := s.getBlockCommitStatusByHash(blockHash)
+		if commitStatus == BLOCK_COMMITTED {
+			// Skip processing the block if it is already committed
+			log.Debug(s.logInfo+" minor block to sync is already committed", "hash", blockHash.Hex())
 			continue
 		}
-		//TODO:support BLOCK_COMMITTING
+		if commitStatus == BLOCK_COMMITTING {
+			// Duplicate block in this batch: already processed earlier in this loop.
+			// processingBlocks can only be set by this goroutine while s.mu is held,
+			// so BLOCK_COMMITTING here always means a duplicate within blockLst.
+			log.Debug(s.logInfo+" duplicate block in sync batch, skipping", "hash", blockHash.Hex())
+			continue
+		}
+
+		// Mark as processing
+		s.processingBlocks.Store(blockHash, true)
+
+		// Validate and add the block
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
+			s.processingBlocks.Delete(blockHash)
 			return err
 		}
 		if len(xshardLst) != 1 {
 			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			return nil
+			s.processingBlocks.Delete(blockHash)
+			continue
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
 	}
+
+	if len(uncommittedBlockHeaderList) == 0 {
+		return nil
+	}
+
 	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
+		// Cleanup on error
+		for _, header := range uncommittedBlockHeaderList {
+			s.processingBlocks.Delete(header.Hash())
+		}
 		return err
 	}
 
@@ -466,11 +517,19 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		MinorBlockHeaderList: uncommittedBlockHeaderList,
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+		// Cleanup on error
+		for _, header := range uncommittedBlockHeaderList {
+			s.processingBlocks.Delete(header.Hash())
+		}
 		return err
 	}
+
+	// Mark all blocks as committed and cleanup processing flags
 	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header.Hash())
+		blockHash := header.Hash()
+		s.MinorBlockChain.CommitMinorBlockByHash(blockHash)
+		s.mBPool.delBlockInPool(blockHash)
+		s.processingBlocks.Delete(blockHash)
 	}
 	return nil
 }

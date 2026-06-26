@@ -538,7 +538,9 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return m.IsMinorBlockCommittedByHash(hash)
+	// Check if block exists in DB directly, independent of commit status
+	block := rawdb.ReadMinorBlock(m.db, hash)
+	return block != nil
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -989,7 +991,8 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
-	m.CommitMinorBlockByHash(block.Hash())
+	// Note: CommitMinorBlockByHash is now only called at shard layer
+	// after distributed coordination (broadcast + report to master) completes
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
@@ -1259,7 +1262,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 			if err := m.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, nil, nil, err
 			}
-			m.CommitMinorBlockByHash(block.Hash())
+			// Note: CommitMinorBlockByHash is now only called at shard layer
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
