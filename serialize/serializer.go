@@ -157,7 +157,7 @@ func writeListLen(w *[]byte, len int, byteSizeOfSliceLen int) error {
 	return nil
 }
 
-//serializePrependedSizeBytes
+// serializePrependedSizeBytes
 func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
 	err := writeListLen(w, val.Len(), ts.ByteSizeOfSliceLen)
 	if err != nil {
@@ -169,7 +169,7 @@ func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
 	return nil
 }
 
-//PrependedSizeListSerializer
+// PrependedSizeListSerializer
 func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
 	typeinfo, err := cachedTypeInfo(val.Type().Elem())
 	if err != nil {

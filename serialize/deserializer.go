@@ -166,7 +166,7 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	return err
 }
 
-//deserializePrependedSizeBytes
+// deserializePrependedSizeBytes
 func deserializeByteSlice(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	bytes, err := bb.GetVarBytes(ts.ByteSizeOfSliceLen)
 	if err == nil {
@@ -187,6 +187,12 @@ func deserializeList(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 		vlen, err = bb.getLen(ts.ByteSizeOfSliceLen)
 		if err != nil {
 			return err
+		}
+
+		// Defensive: getLen should never return negative after the byteSize cap fix,
+		// but guard explicitly in case of future changes to the parsing logic.
+		if vlen < 0 {
+			return fmt.Errorf("deser: invalid negative length %d", vlen)
 		}
 
 		newv := reflect.MakeSlice(val.Type(), vlen, vlen)

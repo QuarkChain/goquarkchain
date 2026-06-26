@@ -64,6 +64,17 @@ func (c *CrossShardTransactionDepositList) Deserialize(bb *serialize.ByteBuffer)
 	}
 	version := size >> 24
 	size = size & MaxUint24
+	// Guard against a malicious length prefix before allocating: each deposit
+	// serializes to more than one byte, so a count larger than the remaining
+	// buffer is invalid and could otherwise force a huge make()/OOM.
+	remaining := bb.Remaining()
+	if int(size) > remaining {
+		bytesStr := "bytes"
+		if remaining == 1 {
+			bytesStr = "byte"
+		}
+		return fmt.Errorf("deser: deposit list length %d exceeds remaining buffer %d %s", size, remaining, bytesStr)
+	}
 	txList := make([]*CrossShardTransactionDeposit, size)
 	switch version {
 	case 0:

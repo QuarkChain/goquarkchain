@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -17,6 +18,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/snappy"
+)
+
+const (
+	// maxFrameSize caps the size of a single P2P message frame. While the protocol
+	// uses a uint32 length field (allowing up to 4 GiB), an attacker-controlled
+	// size can force allocation before any payload validation. Cap at 128 MiB to
+	// prevent OOM while still allowing large legitimate messages.
+	maxFrameSize = 128 * 1024 * 1024
 )
 
 var (
@@ -83,6 +92,14 @@ func (q *qkcRlp) readQKCMsg() (msg Msg, err error) {
 
 	q.rw.dec.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now decrypted
 	fSize := binary.BigEndian.Uint32(headBuf[:4])
+
+	// Guard against oversized frames: an attacker-controlled fSize from the wire
+	// (validated only by MAC on the header, not the size itself) can force a
+	// multi-GiB allocation before any payload validation. This is the "easier
+	// attack" compared to the length-prefix issue fixed in serialize.getLen.
+	if fSize > maxFrameSize {
+		return msg, fmt.Errorf("p2p: frame size %d exceeds limit %d", fSize, maxFrameSize)
+	}
 
 	frameBuf := make([]byte, fSize)
 	if _, err := io.ReadFull(q.rw.conn, frameBuf); err != nil {
