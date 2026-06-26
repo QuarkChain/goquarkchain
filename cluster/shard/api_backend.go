@@ -420,8 +420,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return err
 	}
 
-	// Commit to DB (persistent state)
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
+	// Commit to DB; the write is atomic with any concurrent chain rewind under m.mu.
+	// Returns false when a concurrent reorg deleted the body; treat as uncommitted.
+	if !s.MinorBlockChain.CommitMinorBlockByHash(block.Hash()) {
+		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", block.Hash().Hex())
+		return fmt.Errorf("block body deleted: %s", block.Hash().Hex())
+	}
 	// processingBlocks will be auto-deleted by defer
 
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
@@ -524,10 +528,19 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 
-	// Mark all blocks as committed and cleanup processing flags
-	for _, header := range uncommittedBlockHeaderList {
+	// Mark all blocks as committed and cleanup processing flags.
+	// CommitMinorBlockByHash holds m.mu so the check-and-write is atomic with
+	// any concurrent chain rewind; if the body was deleted by a concurrent reorg,
+	// skip the marker and return an error so the caller retries.
+	for i, header := range uncommittedBlockHeaderList {
 		blockHash := header.Hash()
-		s.MinorBlockChain.CommitMinorBlockByHash(blockHash)
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			for _, remaining := range uncommittedBlockHeaderList[i:] {
+				s.processingBlocks.Delete(remaining.Hash())
+			}
+			return fmt.Errorf("block body deleted: %s", blockHash.Hex())
+		}
 		s.mBPool.delBlockInPool(blockHash)
 		s.processingBlocks.Delete(blockHash)
 	}

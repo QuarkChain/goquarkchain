@@ -537,6 +537,51 @@ func TestHasBlock_FalseWhenBodyAbsentButMarkerPresent(t *testing.T) {
 	}
 }
 
+// ── CommitMinorBlockByHash tests ──────────────────────────────────
+
+// TestCommitIfBodyExists_SkipsWhenBodyAbsent verifies that
+// CommitMinorBlockByHash does not write the commit marker when the
+// block body is absent — simulating the case where AddRootBlock's SetHead
+// deleted the body before the shard layer could commit.
+func TestCommitIfBodyExists_SkipsWhenBodyAbsent(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	fakeHash := common.HexToHash("0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+
+	committed := sb.MinorBlockChain.CommitMinorBlockByHash(fakeHash)
+	if committed {
+		t.Error("CommitMinorBlockByHash must return false when body is absent")
+	}
+	if rawdb.HasCommitMinorBlock(db, fakeHash) {
+		t.Error("commit marker must not be written when body is absent")
+	}
+}
+
+// TestCommitIfBodyExists_WritesWhenBodyPresent verifies that
+// CommitMinorBlockByHash writes the commit marker when the body exists.
+func TestCommitIfBodyExists_WritesWhenBodyPresent(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	engine := new(consensus.FakeEngine)
+	genesis := sb.MinorBlockChain.CurrentBlock()
+	blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
+	block := blocks[0]
+
+	if _, err := sb.MinorBlockChain.InsertChain(toIBlocks([]*types.MinorBlock{block}), false); err != nil {
+		t.Fatalf("InsertChain: %v", err)
+	}
+
+	committed := sb.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
+	if !committed {
+		t.Error("CommitMinorBlockByHash must return true when body is present")
+	}
+	if !rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Error("commit marker must be written when body is present")
+	}
+}
+
 // ── BLOCK_COMMITTING state tests ─────────────────────────────────────────────
 
 // TestAddMinorBlock_SkipsWhenCommitting verifies that AddMinorBlock takes the

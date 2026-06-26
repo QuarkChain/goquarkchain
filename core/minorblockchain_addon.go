@@ -350,7 +350,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
-	m.CommitMinorBlockByHash(gBlock.Hash())
+	rawdb.WriteCommitMinorBlock(m.db, gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}
@@ -1870,8 +1870,21 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 	return rawdb.HasCommitMinorBlock(m.db, h)
 }
 
-func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
+// CommitMinorBlockByHash writes the commit marker only when the block body is
+// still present in the DB. The check-and-write is performed under m.mu so it
+// is atomic with any concurrent operation that also holds m.mu while modifying
+// the chain (e.g. rewinding). Returns false when the body is absent (concurrent
+// reorg deleted it); the caller should treat the block as UNCOMMITTED and retry.
+// Callers that already hold m.mu (e.g. InitGenesisState) must call
+// rawdb.WriteCommitMinorBlock directly to avoid re-entrant locking.
+func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !rawdb.HasBlock(m.db, h) {
+		return false
+	}
 	rawdb.WriteCommitMinorBlock(m.db, h)
+	return true
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
