@@ -12,13 +12,19 @@ PIDFILE=`pwd`/cluster.pids
 # Truncate PID file at startup so a fresh run doesn't inherit stale entries.
 > "$PIDFILE"
 
+# Optional extra flags forwarded to each slave process (e.g. "--ws --ws_host 0.0.0.0").
+extra_slave_flags=()
+if [ -n "${2:-}" ]; then
+    read -ra extra_slave_flags <<< "$2"
+fi
+
 slaveInfo=`grep -Po 'ID[" :]+\K[^"]+' $configPath | grep S`
 
 # start slaves
 for value in $slaveInfo
 do
     sLog=`pwd`/${value}.log
-    ./cluster --cluster_config "${configPath}" --service "${value}" >> "$sLog" 2>&1 &
+    ./cluster --cluster_config "${configPath}" "${extra_slave_flags[@]}" --service "${value}" >> "$sLog" 2>&1 &
     pid=$!
     echo "$pid" >> "$PIDFILE"
     echo "Start ${value} successful pid=${pid} logFile=${sLog}"

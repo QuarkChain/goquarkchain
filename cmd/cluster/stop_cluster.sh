@@ -4,7 +4,8 @@ PIDFILE=`pwd`/cluster.pids
 TIMEOUT=60  # seconds to wait for graceful shutdown before SIGKILL
 
 if [ -f "$PIDFILE" ]; then
-    mapfile -t pids < "$PIDFILE"
+    pids=()
+    while IFS= read -r p; do pids+=("$p"); done < "$PIDFILE"
     if [ ${#pids[@]} -eq 0 ]; then
         echo "PID file is empty, nothing to stop."
         rm -f "$PIDFILE"
@@ -16,7 +17,8 @@ else
     # Note: if multiple clusters with different configs are running on this
     # machine, this will stop all of them.
     echo "PID file not found, falling back to ps lookup..."
-    mapfile -t pids < <(ps -ef | grep -- '--cluster_config' | grep -v grep | awk '{print $2}')
+    pids=()
+    while IFS= read -r p; do pids+=("$p"); done < <(ps -ef | grep -- '--cluster_config' | grep -v grep | awk '{print $2}')
     if [ ${#pids[@]} -eq 0 ]; then
         echo "No cluster processes found."
         exit 0
