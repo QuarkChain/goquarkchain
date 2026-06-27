@@ -916,7 +916,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
-	prevBlock := m.CurrentBlock()
 	if gasLimit == nil {
 		gasLimit = m.gasLimit
 	}
@@ -936,16 +935,22 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	currRootTipHash := m.rootTip.Hash()
+
+	m.mu.Lock()
+	currRootTip := m.rootTip
+	prevBlock := m.CurrentBlock()
+	m.mu.Unlock()
+
+	currRootTipHash := currRootTip.Hash()
+	ancestorRootHeader := m.GetRootBlockByHash(prevBlock.PrevRootBlockHash())
+	if !m.isSameRootChain(currRootTip, ancestorRootHeader) {
+		return nil, ErrNotSameRootChain
+	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit,
 		nil, nil, &currRootTipHash)
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 	if err != nil {
 		return nil, err
-	}
-	ancestorRootHeader := m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())
-	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
-		return nil, ErrNotSameRootChain
 	}
 	_, txCursor, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
@@ -1077,15 +1082,15 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		return false, nil
 	}
 
+	// Update rootTip, confirmedHeaderTip, and rewind currentBlock under a single
+	// lock so readers (e.g. CreateBlockToMine) always see a consistent snapshot.
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.rootTip = rBlock
 	if shardHeader == nil {
 		m.confirmedHeaderTip = nil
 	} else {
 		m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
 	}
-
 	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
@@ -1099,40 +1104,51 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			}
 		}
 	}
-
-	for !m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
-		if m.CurrentBlock().NumberU64() == 0 {
-			genesisRootHeader := m.rootTip
-			genesisHeight := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
-			if genesisRootHeader.Number() < uint32(genesisHeight) {
-				return false, errors.New("genesis root height small than config")
-			}
-			for genesisRootHeader.Number() != uint32(genesisHeight) {
-				genesisRootHeader = m.GetRootBlockByHash(genesisRootHeader.ParentHash())
-				if genesisRootHeader == nil {
-					return false, ErrMinorBlockIsNil
-				}
-			}
-			newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash()) // genesisblock key is rootblock hash
-			if newGenesis == nil {
-				panic(errors.New("get genesis block is nil"))
-			}
-			m.genesisBlock = newGenesis
-			log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
-			if err := m.Reset(); err != nil {
-				return false, err
-			}
-			break
-		}
+	// Rewind currentBlock until it is on the same root chain as rootTip.
+	// Stop at genesis (NumberU64==0); genesis reset is handled after Unlock
+	// because Reset() acquires chainmu and must not run under m.mu.
+	for m.CurrentBlock().NumberU64() != 0 &&
+		!m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
 		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().TerminalString())
 		m.currentBlock.Store(preBlock)
+	}
+	needGenesisReset := m.CurrentBlock().NumberU64() == 0 &&
+		!m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash()))
+	snapshotRootTip := m.rootTip
+	m.mu.Unlock()
+
+	if needGenesisReset {
+		genesisRootHeader := snapshotRootTip
+		genesisHeight := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+		if genesisRootHeader.Number() < uint32(genesisHeight) {
+			return false, errors.New("genesis root height small than config")
+		}
+		for genesisRootHeader.Number() != uint32(genesisHeight) {
+			genesisRootHeader = m.GetRootBlockByHash(genesisRootHeader.ParentHash())
+			if genesisRootHeader == nil {
+				return false, ErrMinorBlockIsNil
+			}
+		}
+		newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash()) // genesisblock key is rootblock hash
+		if newGenesis == nil {
+			panic(errors.New("get genesis block is nil"))
+		}
+		m.genesisBlock = newGenesis
+		log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
+		if err := m.Reset(); err != nil {
+			return false, err
+		}
 	}
 
 	if m.CurrentBlock().Hash() != origHeaderTip.Hash() {
 		headerTipHash := m.CurrentBlock().Hash()
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
+		if origBlock == nil || newBlock == nil {
+			// Reset() wiped origHeaderTip from the DB; nothing to rewrite.
+			return true, nil
+		}
 		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
 		var err error
 		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {

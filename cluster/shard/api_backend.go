@@ -491,10 +491,19 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if err != nil {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			s.processingBlocks.Delete(blockHash)
+			for _, h := range uncommittedBlockHeaderList {
+				s.processingBlocks.Delete(h.Hash())
+			}
 			return err
 		}
 		if len(xshardLst) != 1 {
-			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			log.Warn(s.logInfo+" block already in DB, skipping", "number", block.NumberU64(), "hash", block.Hash().String())
+			// InsertChain skipped re-execution because the block body already exists.
+			// The outgoing xShard list cannot be recovered without re-executing the
+			// block (pyquarkchain uses force=True to handle this; goquarkchain does not
+			// yet support forced re-execution). Drop this block from the batch; it will
+			// be re-synced in a subsequent round.
+			// TODO: add force re-execution to InsertChainForDeposits to align with pyquarkchain.
 			s.processingBlocks.Delete(blockHash)
 			continue
 		}
