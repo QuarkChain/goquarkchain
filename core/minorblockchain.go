@@ -472,9 +472,7 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	rawdb.WriteMinorBlock(m.db, genesis)
 
 	m.genesisBlock = genesis
-	if err := m.insert(m.genesisBlock); err != nil {
-		log.Crit(m.logInfo+" Failed to insert genesis block", "err", err)
-	}
+	m.insert(m.genesisBlock)
 	m.currentBlock.Store(m.genesisBlock)
 
 	return nil
@@ -525,17 +523,11 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 // or if they are on a different side chain.
 //
 // Note, this function assumes that the `mu` mutex is held!
-func (m *MinorBlockChain) insert(block *types.MinorBlock) error {
-	// Add the block to the canonical chain number scheme and mark as the head
-	batch := m.db.NewBatch()
-	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
-	rawdb.WriteHeadBlockHash(batch, block.Hash())
-	if err := batch.Write(); err != nil {
-		return fmt.Errorf("failed to write head block hash to database: %w", err)
-	}
+func (m *MinorBlockChain) insert(block *types.MinorBlock) {
+	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
+	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
 	m.currentBlock.Store(block)
-	return nil
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -1045,9 +1037,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 
 	// Set new head.
 	if status == CanonStatTy {
-		if err := m.insert(block); err != nil {
-			return NonStatTy, err
-		}
+		m.insert(block)
 	}
 	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
@@ -1503,18 +1493,14 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	if len(newChain) == 0 {
 		// insert after batch.Write() so the head pointer is persisted after canonical deletes
-		if err := m.insert(newBlock.(*types.MinorBlock)); err != nil {
-			return err
-		}
+		m.insert(newBlock.(*types.MinorBlock))
 		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
 	}
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
-		if err := m.insert(newChain[i].(*types.MinorBlock)); err != nil {
-			return err
-		}
+		m.insert(newChain[i].(*types.MinorBlock))
 		// write lookup entries for hash based transaction/receipt searches
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err
