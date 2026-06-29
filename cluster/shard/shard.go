@@ -32,7 +32,6 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING
 	BLOCK_COMMITTED
 )
 
@@ -63,11 +62,6 @@ type ShardBackend struct {
 	logInfo      string
 
 	posw consensus.PoSWCalculator
-
-	// Blocks being processed: tracks in-flight block additions to avoid concurrent processing
-	// This is a memory-only flag, does not affect HasBlock or DB state
-	// key: blockHash (common.Hash), value: bool
-	processingBlocks sync.Map
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -212,9 +206,6 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
-	// BLOCK_COMMITTED requires BOTH:
-	// 1. Commit mark exists (distributed coordination complete)
-	// 2. Block body exists (data integrity)
 	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
 		if s.MinorBlockChain.HasBlock(blockHash) {
 			return BLOCK_COMMITTED
@@ -222,17 +213,7 @@ func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCo
 		// Commit mark exists but block body missing - data corruption or pruned
 		log.Warn("Commit mark exists but block body missing, treating as uncommitted",
 			"hash", blockHash.Hex())
-		return BLOCK_UNCOMMITTED
 	}
-
-	// Check if being processed
-	if _, ok := s.processingBlocks.Load(blockHash); ok {
-		return BLOCK_COMMITTING
-	}
-
-	// Return UNCOMMITTED for all other cases:
-	// - Block not in DB yet
-	// - Block in DB but no commit mark (processing interrupted, allow retry)
 	return BLOCK_UNCOMMITTED
 }
 

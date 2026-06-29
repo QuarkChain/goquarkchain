@@ -1377,8 +1377,8 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 
 // reWriteBlockIndexTo : already locked
 func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
@@ -1887,10 +1887,12 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 }
 
 // CommitMinorBlockByHash writes the commit marker only when the block body is
-// still present in the DB. The check-and-write is performed under m.mu so it
-// is atomic with any concurrent operation that also holds m.mu while modifying
-// the chain (e.g. rewinding). Returns false when the body is absent (concurrent
-// reorg deleted it); the caller should treat the block as UNCOMMITTED and retry.
+// still present in the DB. The check-and-write is performed under both chainmu
+// (read lock) and m.mu so that it is atomic with SetHead, which holds
+// chainmu (write lock) while deleting block bodies. Without chainmu, SetHead
+// could delete the body between HasBlock and WriteCommitMinorBlock, leaving
+// marker=yes but body=no. Returns false when the body is absent; the caller
+// should treat the block as UNCOMMITTED and retry.
 // Callers that already hold m.mu (e.g. InitGenesisState) must call
 // rawdb.WriteCommitMinorBlock directly to avoid re-entrant locking.
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) bool {

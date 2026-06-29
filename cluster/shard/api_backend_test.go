@@ -388,12 +388,11 @@ func TestAddMinorBlock_MarkerBodyConsistencyUnderRace(t *testing.T) {
 	}
 }
 
-// ── BLOCK_COMMITTING state tests ─────────────────────────────────────────────
-
-// TestAddMinorBlock_SkipsWhenCommitting verifies that AddMinorBlock takes the
-// fast path and returns nil without processing when the block is already marked
-// as BLOCK_COMMITTING (another goroutine is processing it).
-func TestAddMinorBlock_SkipsWhenCommitting(t *testing.T) {
+// TestAddBlockListForSync_RecoversXShardListOnRetry verifies Issue 3 fix:
+// when a block body already exists in the DB but the commit marker is absent
+// (retry after partial failure), InsertChainForDeposits with force=true
+// re-executes the block to recover the outgoing xshard list without writing state.
+func TestAddBlockListForSync_RecoversXShardListOnRetry(t *testing.T) {
 	sb, db, stop := newTestShardBackend(t)
 	defer stop()
 
@@ -402,39 +401,32 @@ func TestAddMinorBlock_SkipsWhenCommitting(t *testing.T) {
 	blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
 	block := blocks[0]
 
-	// Simulate another goroutine already processing this block.
-	sb.processingBlocks.Store(block.Hash(), true)
-	defer sb.processingBlocks.Delete(block.Hash())
-
-	if err := sb.AddMinorBlock(block); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	// Simulate partial failure: write the block body directly to DB without
+	// going through the shard layer, so the commit marker is absent.
+	if _, err := sb.MinorBlockChain.InsertChain([]types.IBlock{block}, false); err != nil {
+		t.Fatalf("pre-insert body: %v", err)
+	}
+	if !rawdb.HasBlock(db, block.Hash()) {
+		t.Fatal("block body must be present after InsertChain")
+	}
+	if rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Fatal("commit marker must be absent — simulating partial failure")
 	}
 
-	if sb.MinorBlockChain.IsMinorBlockCommittedByHash(block.Hash()) {
-		t.Error("block must not be committed — AddMinorBlock must skip BLOCK_COMMITTING blocks")
-	}
-}
-
-// TestAddBlockListForSync_SkipsCommittingBlock verifies that AddBlockListForSync
-// skips blocks that are in BLOCK_COMMITTING state and returns nil.
-func TestAddBlockListForSync_SkipsCommittingBlock(t *testing.T) {
-	sb, db, stop := newTestShardBackend(t)
-	defer stop()
-
-	engine := new(consensus.FakeEngine)
-	genesis := sb.MinorBlockChain.CurrentBlock()
-	blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
-	block := blocks[0]
-
-	// Simulate another goroutine already processing this block.
-	sb.processingBlocks.Store(block.Hash(), true)
-	defer sb.processingBlocks.Delete(block.Hash())
-
+	// Now retry via AddBlockListForSync. With force=true, InsertChainForDeposits
+	// should re-execute the block, recover the xshard list, and commit successfully.
 	if err := sb.AddBlockListForSync([]*types.MinorBlock{block}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("AddBlockListForSync on retry: %v", err)
 	}
 
-	if sb.MinorBlockChain.IsMinorBlockCommittedByHash(block.Hash()) {
-		t.Error("block must not be committed — AddBlockListForSync must skip BLOCK_COMMITTING blocks")
+	if !rawdb.HasBlock(db, block.Hash()) {
+		t.Error("block body must still be present after retry")
+	}
+	if !rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Error("commit marker must be written after successful retry — Issue 3 fix")
+	}
+	if sb.MinorBlockChain.CurrentBlock().Hash() != block.Hash() {
+		t.Errorf("chain tip must advance to block %s after retry, got %s",
+			block.Hash().Hex(), sb.MinorBlockChain.CurrentBlock().Hash().Hex())
 	}
 }
