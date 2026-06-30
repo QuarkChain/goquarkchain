@@ -1887,14 +1887,11 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 }
 
 // CommitMinorBlockByHash writes the commit marker only when the block body is
-// still present in the DB. The check-and-write is performed under both chainmu
-// (read lock) and m.mu so that it is atomic with SetHead, which holds
-// chainmu (write lock) while deleting block bodies. Without chainmu, SetHead
-// could delete the body between HasBlock and WriteCommitMinorBlock, leaving
-// marker=yes but body=no. Returns false when the body is absent; the caller
-// should treat the block as UNCOMMITTED and retry.
-// Callers that already hold m.mu (e.g. InitGenesisState) must call
-// rawdb.WriteCommitMinorBlock directly to avoid re-entrant locking.
+// still present in the DB. The check-and-write is performed under m.mu.
+// Returns false when the body is absent; the caller should treat the block
+// as UNCOMMITTED and retry.
+// Callers that already hold m.mu must call rawdb.WriteCommitMinorBlock
+// directly to avoid re-entrant locking.
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

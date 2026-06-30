@@ -411,7 +411,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return err
 	}
 
-	// Commit to DB; the write is atomic with any concurrent chain rewind under m.mu.
+	// Commit to DB; CommitMinorBlockByHash holds m.mu internally so the
+	// check-and-write is atomic with concurrent callers on the same shard.
 	// Returns false when a concurrent reorg deleted the body; treat as uncommitted.
 	if !s.MinorBlockChain.CommitMinorBlockByHash(block.Hash()) {
 		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", block.Hash().Hex())
@@ -504,8 +505,8 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 
-	// CommitMinorBlockByHash holds chainmu+m.mu so the check-and-write is atomic
-	// with any concurrent chain rewind; if the body was deleted, return an error.
+	// CommitMinorBlockByHash holds m.mu so the check-and-write is atomic;
+	// if the body was deleted, return an error.
 	for _, header := range uncommittedBlockHeaderList {
 		blockHash := header.Hash()
 		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
