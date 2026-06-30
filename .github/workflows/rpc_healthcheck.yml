@@ -17,7 +17,11 @@ jobs:
     name: Check ${{ matrix.name }} root chain last block time
     if: ${{ github.repository == 'QuarkChain/goquarkchain' && vars.RPC_HEALTHCHECK_TARGETS_JSON != '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Must exceed the curl retry budget below (--retry-max-time 600 plus one
+    # in-flight --max-time 120 attempt, ~640s worst case). Otherwise the job is
+    # canceled mid-retry before it can write/upload its report, and the target
+    # silently drops out of the notification email.
+    timeout-minutes: 13
     strategy:
       fail-fast: false
       matrix:
@@ -153,6 +157,7 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           ROOTCHAIN_CHECK_RESULT: ${{ needs.check-rootchain.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RPC_HEALTHCHECK_TARGETS_JSON: ${{ vars.RPC_HEALTHCHECK_TARGETS_JSON }}
         run: |
           set -euo pipefail
           send=false
@@ -162,15 +167,19 @@ jobs:
           table_rows=''
           html_rows=''
 
-          shopt -s nullglob
-          report_files=("$report_dir"/rootchain_report_*.json)
-          if [[ ${#report_files[@]} -eq 0 ]]; then
-            overall="FAILED"
-            send=true
-            table_rows='| unknown | unknown | ❌ | - | missing rootchain report artifact |\n'
-            html_rows='<tr><td>unknown</td><td>unknown</td><td>❌</td><td>-</td><td>missing rootchain report artifact</td></tr>'
-          else
-            for f in "${report_files[@]}"; do
+          # Iterate over the expected targets (the same list that drives the
+          # check-rootchain matrix) rather than over whatever reports happened
+          # to be uploaded. That way a target whose job timed out or was
+          # canceled before it could write/upload a report still shows up as a
+          # failed row instead of silently vanishing from the email.
+          mapfile -t targets < <(printf '%s' "${RPC_HEALTHCHECK_TARGETS_JSON}" | jq -c '.[]')
+
+          for t in "${targets[@]}"; do
+            exp_name="$(jq -r '.name' <<<"$t")"
+            exp_url="$(jq -r '.rpc_url' <<<"$t")"
+            f="${report_dir}/rootchain_report_${exp_name}.json"
+
+            if [[ -f "$f" ]]; then
               rc_name="$(jq -r '.name' "$f")"
               rc_rpc_url="$(jq -r '.rpc_url' "$f")"
               rc_result="$(jq -r '.result' "$f")"
@@ -190,21 +199,33 @@ jobs:
                 rc_icon="✅"
                 rc_error="-"
               fi
-              rc_rpc_url_esc="${rc_rpc_url//|/\\|}"
-              rc_error_esc="${rc_error//|/\\|}"
-              table_rows+="| ${rc_name} | ${rc_rpc_url_esc} | ${rc_icon} | ${rc_height} | ${rc_error_esc} |\n"
-              rc_name_html="${rc_name//&/&amp;}"
-              rc_name_html="${rc_name_html//</&lt;}"
-              rc_name_html="${rc_name_html//>/&gt;}"
-              rc_rpc_url_html="${rc_rpc_url//&/&amp;}"
-              rc_rpc_url_html="${rc_rpc_url_html//</&lt;}"
-              rc_rpc_url_html="${rc_rpc_url_html//>/&gt;}"
-              rc_error_html="${rc_error//&/&amp;}"
-              rc_error_html="${rc_error_html//</&lt;}"
-              rc_error_html="${rc_error_html//>/&gt;}"
-              html_rows+="<tr><td>${rc_name_html}</td><td>${rc_rpc_url_html}</td><td>${rc_icon}</td><td>${rc_height}</td><td>${rc_error_html}</td></tr>"
-            done
-          fi
+            else
+              # No report uploaded for this target: its job likely hit the
+              # timeout-minutes limit (or otherwise died) before writing one.
+              # Surface it as a failure so it stays visible in the email.
+              overall="FAILED"
+              send=true
+              rc_name="$exp_name"
+              rc_rpc_url="$exp_url"
+              rc_height="-"
+              rc_icon="❌"
+              rc_error="no report (job timed out or was canceled)"
+            fi
+
+            rc_rpc_url_esc="${rc_rpc_url//|/\\|}"
+            rc_error_esc="${rc_error//|/\\|}"
+            table_rows+="| ${rc_name} | ${rc_rpc_url_esc} | ${rc_icon} | ${rc_height} | ${rc_error_esc} |\n"
+            rc_name_html="${rc_name//&/&amp;}"
+            rc_name_html="${rc_name_html//</&lt;}"
+            rc_name_html="${rc_name_html//>/&gt;}"
+            rc_rpc_url_html="${rc_rpc_url//&/&amp;}"
+            rc_rpc_url_html="${rc_rpc_url_html//</&lt;}"
+            rc_rpc_url_html="${rc_rpc_url_html//>/&gt;}"
+            rc_error_html="${rc_error//&/&amp;}"
+            rc_error_html="${rc_error_html//</&lt;}"
+            rc_error_html="${rc_error_html//>/&gt;}"
+            html_rows+="<tr><td>${rc_name_html}</td><td>${rc_rpc_url_html}</td><td>${rc_icon}</td><td>${rc_height}</td><td>${rc_error_html}</td></tr>"
+          done
 
           if [[ "$ROOTCHAIN_CHECK_RESULT" != "success" ]]; then
             overall="FAILED"
