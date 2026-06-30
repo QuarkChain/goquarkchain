@@ -210,7 +210,7 @@ func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCo
 		if s.MinorBlockChain.HasBlock(blockHash) {
 			return BLOCK_COMMITTED
 		}
-		// Commit mark exists but block body missing - data corruption or pruned
+		// Commit mark exists but block body missing — likely a concurrent SetHead race; treat as uncommitted.
 		log.Warn("Commit mark exists but block body missing, treating as uncommitted",
 			"hash", blockHash.Hex())
 	}

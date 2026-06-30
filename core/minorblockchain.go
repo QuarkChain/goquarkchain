@@ -989,7 +989,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
-	// Note: CommitMinorBlockByHash is now only called at shard layer
 	// after distributed coordination (broadcast + report to master) completes
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
@@ -1159,7 +1158,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 
-		if force {
+		if force && m.HasBlock(mBlock.Hash()) {
+			// Body already exists — re-execution only, do not write state again.
 			xShardList = append(xShardList, state.GetXShardList())
 			return 0, events, coalescedLogs, xShardList, nil
 		}
@@ -1260,7 +1260,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool) (int, 
 			if err := m.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, nil, nil, err
 			}
-			// Note: CommitMinorBlockByHash is now only called at shard layer
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
