@@ -206,13 +206,8 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
-	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
-		if s.MinorBlockChain.HasBlock(blockHash) {
-			return BLOCK_COMMITTED
-		}
-		// Commit mark exists but block body missing — likely a concurrent SetHead race; treat as uncommitted.
-		log.Warn("Commit mark exists but block body missing, treating as uncommitted",
-			"hash", blockHash.Hex())
+	if s.MinorBlockChain.HasBlock(blockHash) {
+		return BLOCK_COMMITTED
 	}
 	return BLOCK_UNCOMMITTED
 }
