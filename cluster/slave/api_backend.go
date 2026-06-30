@@ -98,9 +98,11 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
-		if !shard.MinorBlockChain.HasBlock(hash) {
-			hashList = append(hashList, hash)
+		if shard.MinorBlockChain.HasBlock(hash) && shard.MinorBlockChain.IsMinorBlockCommittedByHash(hash) {
+			continue
 		}
+
+		hashList = append(hashList, hash)
 	}
 
 	var (

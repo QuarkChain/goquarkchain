@@ -538,7 +538,7 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return rawdb.HasBlock(m.db, hash) && rawdb.HasCommitMinorBlock(m.db, hash)
+	return rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -989,7 +989,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
-	// after distributed coordination (broadcast + report to master) completes
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
