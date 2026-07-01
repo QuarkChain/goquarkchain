@@ -137,8 +137,6 @@ func cluster(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startService(ctx *cli.Context, stack *service.Node) {
-	debug.Memsize.Add("service", stack)
-
 	// Start up the node itself
 	utils.StartService(stack)
 
