@@ -309,8 +309,8 @@ func (m *MinorBlockChain) loadLastState() error {
 // nodes after a fast sync).
 // already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.setHead(head)
 }
 
