@@ -18,7 +18,7 @@ if [ -n "${2:-}" ]; then
     read -ra extra_slave_flags <<< "$2"
 fi
 
-slaveInfo=`grep -Po 'ID[" :]+\K[^"]+' $configPath | grep S`
+slaveInfo=`grep -oE 'ID[" :]+[^"]+' $configPath | sed 's/^ID[" :]*//' | grep S`
 
 # start slaves
 for value in $slaveInfo
