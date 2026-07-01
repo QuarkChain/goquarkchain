@@ -8,23 +8,33 @@ else
     echo "set config, configPath="$configPath
 fi
 
-slaveInfo=`grep -Po 'ID[" :]+\K[^"]+' $configPath | grep S`
+PIDFILE=`pwd`/cluster.pids
+# Truncate PID file at startup so a fresh run doesn't inherit stale entries.
+> "$PIDFILE"
 
-# start slave
+# Optional extra flags forwarded to each slave process (e.g. "--ws --ws_host 0.0.0.0").
+extra_slave_flags=()
+if [ -n "${2:-}" ]; then
+    read -ra extra_slave_flags <<< "$2"
+fi
+
+slaveInfo=`grep -oE 'ID[" :]+[^"]+' $configPath | sed 's/^ID[" :]*//' | grep S`
+
+# start slaves
 for value in $slaveInfo
 do
-   sLog=`pwd`/${value}.log
-	 cmd="./cluster --cluster_config "${configPath}" --service "${value}">> "$sLog" 2>&1 &"
-	 eval $cmd
-	 pid=$!
-	 echo "Start "${value}"     successfull pid="$pid" logFile=$sLog"
+    sLog=`pwd`/${value}.log
+    ./cluster --cluster_config "${configPath}" "${extra_slave_flags[@]}" --service "${value}" >> "$sLog" 2>&1 &
+    pid=$!
+    echo "$pid" >> "$PIDFILE"
+    echo "Start ${value} successful pid=${pid} logFile=${sLog}"
 done
 
 sleep 5s
 
 # start master
 mLog=`pwd`/master.log
-cmd="./cluster --cluster_config "${configPath}" >>$mLog 2>&1 &"
-eval $cmd
+./cluster --cluster_config "${configPath}" >> "$mLog" 2>&1 &
 pid=$!
-echo "Start master successfull pid="$pid" logFile=$mLog"
+echo "$pid" >> "$PIDFILE"
+echo "Start master successful pid=${pid} logFile=${mLog}"
