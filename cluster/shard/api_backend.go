@@ -296,7 +296,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
-	if s.MinorBlockChain.HasBlock(block.Hash()) {
+	if s.MinorBlockChain.HasBlock(block.Hash()) && s.MinorBlockChain.IsMinorBlockCommittedByHash(block.Hash()) {
 		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
@@ -425,7 +425,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead.Number)
 			return err
 		}
 	}

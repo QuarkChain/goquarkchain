@@ -1159,8 +1159,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 
 		if force && m.HasBlock(mBlock.Hash()) {
 			// Body already exists — re-execution only, do not write state again.
+			// Use continue so that any subsequent blocks in the chain are still
+			// processed; an early return would silently drop them.
 			xShardList = append(xShardList, state.GetXShardList())
-			return 0, events, coalescedLogs, xShardList, nil
+			continue
 		}
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
