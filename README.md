@@ -131,6 +131,13 @@ Or, instead of running above 3 commands, use the following command to run the pr
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./run_cluster.sh  ../../tests/testnet/egconfig/cluster_config_template.json
 ```
+To stop all cluster processes started by `run_cluster.sh`, run:
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+./stop_cluster.sh
+```
+The script sends SIGTERM to each process and waits up to 60 seconds for a clean shutdown before force-killing any remaining processes.
+
 ## Run a Cluster Inside Docker 
 
 Using pre-built Docker image(quarkchaindocker/goquarkchain), you can run a cluster inside Docker container without setting up environment step by step.
