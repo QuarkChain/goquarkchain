@@ -147,6 +147,9 @@ func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 		return err
 	}
 	_, err := bc.mbc.InsertChain([]types.IBlock{block}, false)
+	if err == nil {
+		bc.mbc.CommitMinorBlockByHash(block.Hash())
+	}
 	return err
 }
 

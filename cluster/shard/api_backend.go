@@ -296,12 +296,12 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
-	if s.MinorBlockChain.HasBlock(block.Hash()) && s.MinorBlockChain.IsMinorBlockCommittedByHash(block.Hash()) {
+	if s.MinorBlockChain.HasCommittedBlock(block.Hash()) {
 		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
 
-	if !s.MinorBlockChain.HasBlock(block.ParentHash()) {
+	if !s.MinorBlockChain.HasCommittedBlock(block.ParentHash()) {
 		log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
 		return
 	}

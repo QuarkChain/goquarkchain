@@ -174,7 +174,7 @@ func TestAddBlockListForSync_ContinuesPastKnownBlock(t *testing.T) {
 		t.Fatalf("pre-insert blockA: %v", err)
 	}
 	sb.MinorBlockChain.CommitMinorBlockByHash(blockA.Hash())
-	if !sb.MinorBlockChain.IsMinorBlockCommittedByHash(blockA.Hash()) {
+	if !sb.MinorBlockChain.HasCommittedBlock(blockA.Hash()) {
 		t.Fatal("blockA must be committed after InsertChain + CommitMinorBlockByHash")
 	}
 
@@ -185,7 +185,7 @@ func TestAddBlockListForSync_ContinuesPastKnownBlock(t *testing.T) {
 		t.Fatalf("AddBlockListForSync: %v", err)
 	}
 
-	if !sb.MinorBlockChain.IsMinorBlockCommittedByHash(blockB.Hash()) {
+	if !sb.MinorBlockChain.HasCommittedBlock(blockB.Hash()) {
 		t.Error("blockB must be committed: AddBlockListForSync abandoned the batch early")
 	}
 	if sb.MinorBlockChain.CurrentBlock().Hash() != blockB.Hash() {

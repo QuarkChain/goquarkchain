@@ -99,7 +99,7 @@ func NewMinorChainTask(
 				return false
 			}
 			if mTask.header.NumberU64() <= bc.CurrentHeader().NumberU64() ||
-				(minorBlockCommitted(bc, mTask.header.Hash())) {
+				(bc.HasCommittedBlock(mTask.header.Hash())) {
 				return true
 			}
 
@@ -165,17 +165,13 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 	return mHeaders, nil
 }
 
-func minorBlockCommitted(bc *core.MinorBlockChain, h common.Hash) bool {
-	return bc.HasBlock(h) && bc.IsMinorBlockCommittedByHash(h)
-}
-
 func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, error) {
 	bc, ok := b.(*core.MinorBlockChain)
 	if !ok {
 		return nil, errors.New("Invalid blockchain type for minor chain task")
 	}
 
-	if minorBlockCommitted(bc, m.header.Hash()) {
+	if bc.HasCommittedBlock(m.header.Hash()) {
 		return nil, nil
 	}
 
@@ -214,7 +210,7 @@ func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, er
 			}
 			preHeader = mh
 
-			if !minorBlockCommitted(bc, mh.Hash()) {
+			if !bc.HasCommittedBlock(mh.Hash()) {
 				end = mh.Number - 1
 				continue
 			}
@@ -231,8 +227,8 @@ func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, er
 		}
 	}
 
-	if !minorBlockCommitted(bc, bestAncestor.Hash()) {
-		return nil, errors.New("Bad ancestor ")
+	if bestAncestor == nil {
+		return nil, errors.New("No common ancestor found for minor chain")
 	}
 	return bestAncestor, nil
 }

@@ -206,7 +206,7 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
-	if s.MinorBlockChain.HasBlock(blockHash) && s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
+	if s.MinorBlockChain.HasCommittedBlock(blockHash) {
 		return BLOCK_COMMITTED
 	}
 	return BLOCK_UNCOMMITTED

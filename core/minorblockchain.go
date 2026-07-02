@@ -536,6 +536,10 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 	return m.genesisBlock
 }
 
+func (m *MinorBlockChain) HasCommittedBlock(hash common.Hash) bool {
+	return rawdb.HasBlock(m.db, hash) && rawdb.HasCommitMinorBlock(m.db, hash)
+}
+
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(m.db, hash)
