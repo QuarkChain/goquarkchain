@@ -87,7 +87,9 @@ type SlaveConnection struct {
 }
 
 // create slave connection manager
-func NewSlaveConn(target string, shardMaskList []uint32, slaveID string) *SlaveConnection {
+// NewSlaveConn is a package-level variable (rather than a plain func) so that tests
+// can swap in a stub without machine-code patching, which is unsupported on macOS.
+var NewSlaveConn = func(target string, shardMaskList []uint32, slaveID string) *SlaveConnection {
 	client := rpc.NewClient(rpc.SlaveServer)
 	return &SlaveConnection{
 		target:        target,

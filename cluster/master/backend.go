@@ -136,7 +136,9 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+// createDB is a package-level variable (rather than a plain func) so that tests
+// can swap in a stub without machine-code patching, which is unsupported on macOS.
+var createDB = func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
 	db, err := ctx.OpenDatabase(name, clean, isReadOnly)
 	if err != nil {
 		return nil, err
