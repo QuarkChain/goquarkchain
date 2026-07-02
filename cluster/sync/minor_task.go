@@ -94,13 +94,14 @@ func NewMinorChainTask(
 			return ret, nil
 		},
 		needSkip: func(b blockchain) bool {
+			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() ||
+				b.HasCommittedBlock(mTask.header.Hash()) {
+				return true
+			}
+
 			bc, ok := b.(*core.MinorBlockChain)
 			if !ok {
 				return false
-			}
-			if mTask.header.NumberU64() <= bc.CurrentHeader().NumberU64() ||
-				(bc.HasCommittedBlock(mTask.header.Hash())) {
-				return true
 			}
 
 			// Do not download if the prev root block is not synced
@@ -166,16 +167,11 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 }
 
 func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, error) {
-	bc, ok := b.(*core.MinorBlockChain)
-	if !ok {
-		return nil, errors.New("Invalid blockchain type for minor chain task")
-	}
-
-	if bc.HasCommittedBlock(m.header.Hash()) {
+	if b.HasCommittedBlock(m.header.Hash()) {
 		return nil, nil
 	}
 
-	mtip := bc.CurrentHeader().(*types.MinorBlockHeader)
+	mtip := b.CurrentHeader().(*types.MinorBlockHeader)
 	if m.header.Hash() == mtip.Hash() {
 		return mtip, nil
 	}
@@ -210,7 +206,7 @@ func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, er
 			}
 			preHeader = mh
 
-			if !bc.HasCommittedBlock(mh.Hash()) {
+			if !b.HasCommittedBlock(mh.Hash()) {
 				end = mh.Number - 1
 				continue
 			}

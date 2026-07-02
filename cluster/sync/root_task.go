@@ -55,7 +55,7 @@ func NewRootChainTask(
 		batchSize: 3, // RootBlockBatchSize,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
 
-			if bc.HasBlock(rTask.header.Hash()) {
+			if bc.HasCommittedBlock(rTask.header.Hash()) {
 				return nil, nil
 			}
 
@@ -65,7 +65,7 @@ func NewRootChainTask(
 				return nil, err
 			}
 
-			if !bc.HasBlock(ancestor.Hash()) {
+			if !bc.HasCommittedBlock(ancestor.Hash()) {
 				return nil, errors.New("Bad ancestor ")
 			}
 
@@ -213,7 +213,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 			}
 			preHeader = rh
 
-			if !bc.HasBlock(rh.Hash()) {
+			if !bc.HasCommittedBlock(rh.Hash()) {
 				end = rh.Number - 1
 				continue
 			}

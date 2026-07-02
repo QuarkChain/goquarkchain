@@ -344,6 +344,12 @@ func (bc *RootBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(bc.db, hash)
 }
 
+// HasCommittedBlock satisfies the sync.blockchain interface. Root blocks have no
+// separate commit marker, so committed ≡ present in the database.
+func (bc *RootBlockChain) HasCommittedBlock(hash common.Hash) bool {
+	return bc.HasBlock(hash)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *RootBlockChain) GetBlock(hash common.Hash) types.IBlock {

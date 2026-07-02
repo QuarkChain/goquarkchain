@@ -13,7 +13,7 @@ import (
 
 // A lightweight wrapper over shard chain or root chain.
 type blockchain interface {
-	HasBlock(common.Hash) bool
+	HasCommittedBlock(common.Hash) bool
 	AddBlock(types.IBlock) error
 	CurrentHeader() types.IHeader
 	Validator() core.Validator

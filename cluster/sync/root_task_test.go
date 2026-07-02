@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"sort"
 	"testing"
 
@@ -131,14 +130,11 @@ type mockblockchain struct {
 	validator core.Validator
 }
 
-func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
+func (bc *mockblockchain) HasCommittedBlock(hash common.Hash) bool {
 	if bc.rbc != nil {
-		header := bc.rbc.GetHeader(hash)
-		return !(header == nil || reflect.ValueOf(header).IsNil())
+		return bc.rbc.HasCommittedBlock(hash)
 	}
-	header := bc.mbc.GetHeader(hash)
-	return !(header == nil || reflect.ValueOf(header).IsNil())
-
+	return bc.mbc.HasCommittedBlock(hash)
 }
 
 func (bc *mockblockchain) AddBlock(block types.IBlock) error {
@@ -282,14 +278,14 @@ func TestRootChainTask(t *testing.T) {
 	// Sync older forks. Starting from block 20, up to 2*maxSyncStaleness.
 	retRBlocks, retRHeaders = makeRootChains(retRBlocks[len(retRBlocks)-1], 1000, true)
 	for _, rh := range retRHeaders[1:] {
-		assert.False(t, bc.HasBlock(rh.Hash()))
+		assert.False(t, bc.HasCommittedBlock(rh.Hash()))
 	}
 
 	rt.(*rootChainTask).header = retRHeaders[4]
 	p.retRHeaders, p.retRBlocks = append(p.retRHeaders[20:], retRHeaders...), append(p.retRBlocks[20:], retRBlocks...)
 	assert.NoError(t, rt.Run(bc))
 	for _, rh := range retRHeaders {
-		assert.True(t, bc.HasBlock(rh.Hash()))
+		assert.True(t, bc.HasCommittedBlock(rh.Hash()))
 	}
 
 	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
