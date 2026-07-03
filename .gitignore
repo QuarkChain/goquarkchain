@@ -13,3 +13,10 @@
 .idea
 .vscode
 cmd/cluster/cluster
+
+# macOS
+.DS_Store
+
+# Cluster runtime artifacts
+cmd/cluster/*.log
+cmd/cluster/qkc-data/
