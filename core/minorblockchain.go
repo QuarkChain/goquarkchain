@@ -307,8 +307,17 @@ func (m *MinorBlockChain) loadLastState() error {
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
-// already have locked
+//
+// Takes chainmu (outer) then mu (inner), the same order the insertChain pipeline
+// uses (InsertChainForDeposits holds chainmu; WriteBlockWithState takes mu). This
+// makes a head rewind mutually exclusive with a full import, so a concurrent
+// SetHead can no longer delete a parent block out from under an in-flight
+// WriteBlockWithState / reorg. Callers that already hold chainmu (the reorg and
+// genesis-reset paths) must call the unlocked setHead instead to avoid re-entrant
+// locking; ResetWithGenesisBlock does exactly that.
 func (m *MinorBlockChain) SetHead(head uint64) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.setHead(head)
@@ -463,9 +472,15 @@ func (m *MinorBlockChain) Reset() error {
 
 // ResetWithGenesisBlock purges the entire blockchain, restoring it to the
 // specified genesis state.
+//
+// Calls the unlocked setHead: every path that reaches here already holds the
+// relevant locks (SetHead holds chainmu+mu; AddRootBlock's genesis reset holds
+// chainmu; loadLastState runs during single-threaded init or from within
+// setHead which already holds them). Calling the exported SetHead here would
+// re-acquire chainmu/mu and self-deadlock.
 func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error {
 	// Dump the entire block chain and purge the caches
-	if err := m.SetHead(0); err != nil {
+	if err := m.setHead(0); err != nil {
 		return err
 	}
 

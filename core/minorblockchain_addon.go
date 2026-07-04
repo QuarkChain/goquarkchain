@@ -510,11 +510,9 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	m.currentEvmState, err = m.StateAt(block.Root())
-	if err != nil {
-		log.Error("unexpected err:should have state here", "err", err)
-		return err
-	}
+	// reWriteBlockIndexTo publishes currentEvmState together with the index
+	// rewrite (it recomputes StateAt(block.Root()) internally), so no separate
+	// currentEvmState assignment is needed here.
 	err = m.reWriteBlockIndexTo(nil, block)
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
@@ -1082,8 +1080,20 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		return false, nil
 	}
 
-	// Update rootTip, confirmedHeaderTip, and rewind currentBlock under a single
-	// lock so readers (e.g. CreateBlockToMine) always see a consistent snapshot.
+	// Hold chainmu across the entire rewind + genesis-reset + index-rewrite so
+	// that a root-block reorg is mutually exclusive with the insertChain
+	// pipeline (which runs under chainmu). Both reorg entry points — the insert
+	// path (WriteBlockWithState) and this one (via reWriteBlockIndexTo) —
+	// are now serialized on chainmu. Lock order is always chainmu (outer) -> mu
+	// (inner), matching InsertChainForDeposits -> WriteBlockWithState, so there
+	// is no AB-BA deadlock. The genesis-reset path below calls Reset() ->
+	// ResetWithGenesisBlock, which uses the unlocked setHead (not the exported
+	// SetHead) precisely so it does not try to re-acquire chainmu here.
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+
+	// Update rootTip, confirmedHeaderTip, and rewind currentBlock under mu so
+	// readers (e.g. CreateBlockToMine) always see a consistent snapshot.
 	m.mu.Lock()
 	m.rootTip = rBlock
 	if shardHeader == nil {
@@ -1105,8 +1115,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 	}
 	// Rewind currentBlock until it is on the same root chain as rootTip.
-	// Stop at genesis (NumberU64==0); genesis reset is handled after Unlock
-	// because Reset() acquires chainmu and must not run under m.mu.
+	// Stop at genesis (NumberU64==0); the genesis reset below runs after this
+	// mu.Unlock() because Reset() -> ResetWithGenesisBlock -> setHead(0) mutates
+	// currentBlock, and setHead assumes its caller already holds the locks. We
+	// still hold m.chainmu across the reset, so insertChain remains excluded
+	// throughout — only mu is released here.
 	for m.CurrentBlock().NumberU64() != 0 &&
 		!m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
@@ -1150,12 +1163,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			return true, nil
 		}
 		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
-		var err error
-		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
-			return false, err
-		}
-		m.currentEvmState, err = m.StateAt(newBlock.Root())
-		if err != nil {
+		// We already hold chainmu (deferred at the top of AddRootBlock), so the
+		// reorg inside reWriteBlockIndexTo stays mutually exclusive with the
+		// insertChain pipeline; reWriteBlockIndexTo takes only mu to publish the
+		// index rewrite and the new currentEvmState together.
+		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}
 	}
@@ -1375,14 +1387,32 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 	return 1
 }
 
-// reWriteBlockIndexTo : already locked
+// reWriteBlockIndexTo recomputes the new head state and, under mu, reorgs the
+// canonical index and publishes the new currentEvmState together, so a reader
+// under mu can never observe a new currentBlock paired with a stale index or
+// currentEvmState. newState is computed before locking (StateAt is lock-free)
+// so no trie work happens under mu.
+//
+// It takes only mu, NOT chainmu. The reorg can rewind the head via setHead and
+// so must be mutually exclusive with the insertChain pipeline, but that
+// exclusion is provided by the caller: AddRootBlock already holds chainmu for
+// the whole reorg, and InitFromRootBlock runs single-threaded during init.
+// Callers that need exclusion from insertChain must hold chainmu themselves.
 func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
+	newState, err := m.StateAt(newBlock.Root())
+	if err != nil {
+		return err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
-	return m.reorg(oldBlock, newBlock)
+	if err := m.reorg(oldBlock, newBlock); err != nil {
+		return err
+	}
+	m.currentEvmState = newState
+	return nil
 }
 
 func (m *MinorBlockChain) GetBranch() account.Branch {

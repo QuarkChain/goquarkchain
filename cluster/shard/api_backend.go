@@ -194,6 +194,13 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	// Serialize root-block handling against AddMinorBlock / AddBlockListForSync on
+	// the same shard, so their broadcast + master-report side effects cannot
+	// interleave. The core-layer data race (currentBlock/canonical-index rewrite
+	// vs. the insertChain pipeline) is handled separately inside
+	// MinorBlockChain.AddRootBlock, which now holds m.chainmu across the reorg.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	switched = false
@@ -325,7 +332,13 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+	// force=true: any block reaching here is uncommitted (committed blocks
+	// returned at the HasCommittedBlock check above). A body may already be
+	// present but uncommitted — a prior AddMinorBlock inserted it, then failed
+	// before writing the commit marker. force=false would reject that as
+	// ErrKnownBlock and return before AddMinorBlock's force=true recovery runs,
+	// stranding the body permanently. For a fresh block force has no effect.
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, true); err != nil {
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
 	}
@@ -374,8 +387,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 
 	if len(xshardLst) != 1 {
-		log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-		return nil
+		return fmt.Errorf("unexpected xshard list length %d for block %s", len(xshardLst), block.Hash().Hex())
 	}
 
 	// only remove from pool if the block successfully added to state,
@@ -387,7 +399,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
+	prevRootBlock := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+	if prevRootBlock == nil {
+		log.Error(s.logInfo+" prev root block not found", "hash", block.PrevRootBlockHash().Hex())
+		return fmt.Errorf("prev root block not found: %s", block.PrevRootBlockHash().Hex())
+	}
+	prevRootHeight := prevRootBlock.Number()
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
 		s.setHead(currHead.Number)
 		return err
@@ -483,8 +500,12 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			return fmt.Errorf("unexpected xshard list length %d for block %s", len(xshardLst), blockHash.Hex())
 		}
 		s.mBPool.delBlockInPool(block.Hash())
-		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
-		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
+		prevRootBlock := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+		if prevRootBlock == nil {
+			log.Error(s.logInfo+" prev root block not found", "hash", block.PrevRootBlockHash().Hex())
+			return fmt.Errorf("prev root block not found: %s", block.PrevRootBlockHash().Hex())
+		}
+		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootBlock.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
 	}
 
@@ -493,7 +514,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	}
 
 	// interrupt the current miner and restart
-	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
+	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, s.branch); err != nil {
 		return err
 	}
 

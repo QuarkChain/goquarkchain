@@ -227,21 +227,22 @@ func TestAddBlockListForSync_CommitMarkerPresentAfterSync(t *testing.T) {
 	}
 }
 
-// TestAddBlockListForSync_MarkerBodyConsistencyUnderRace verifies the Bug 1 fix
-// for AddBlockListForSync: when a concurrent SetHead deletes the block body
-// between InsertChainForDeposits and CommitMinorBlockByHash, HasBlock must
-// correctly return false (body absent), not true.
+// TestAddBlockListForSync_MarkerBodyConsistencyUnderRace asserts the body/marker
+// consistency invariant under a concurrent AddBlockListForSync vs SetHead: the
+// commit marker is never present while the body is absent.
 //
-// Background: before the fix, HasBlock was implemented as IsMinorBlockCommittedByHash,
-// so a stale commit marker (written after setHead deleted the body) caused
-// HasBlock to return true for a missing block, leading to "unknown ancestor" errors.
-// The fix changes HasBlock to check the block body in the DB directly
-// (rawdb.ReadMinorBlock), independent of the commit marker.
+// Two mechanisms together guarantee this, and this test guards both against
+// regression:
+//  1. CommitMinorBlockByHash checks HasBlock (body present) under m.mu before
+//     writing the marker, and SetHead also holds m.mu, so a marker is never
+//     written for a body that a concurrent SetHead already deleted.
+//  2. rawdb.DeleteMinorBlock deletes the body AND the commit marker together,
+//     so SetHead can never strip the body while leaving the marker behind.
 //
-// Note: the race that produces marker=present, body=absent is still possible
-// (CommitMinorBlockByHash is still called outside m.chainmu). This test does NOT
-// assert that the bad state never occurs; it asserts that HasBlock handles it
-// correctly when it does.
+// If either regresses (e.g. the body-check is dropped from CommitMinorBlockByHash,
+// or DeleteMinorBlock stops deleting the marker), the (marker && !body) state
+// becomes observable and this test fails. Must run with -race to exercise the
+// interleaving; the loop repeats it many times to hit the window.
 //
 // Run with: go test -race ./cluster/shard/... -run TestAddBlockListForSync_MarkerBodyConsistencyUnderRace
 func TestAddBlockListForSync_MarkerBodyConsistencyUnderRace(t *testing.T) {
@@ -274,15 +275,15 @@ func TestAddBlockListForSync_MarkerBodyConsistencyUnderRace(t *testing.T) {
 
 		hasBody := rawdb.HasBlock(db, block.Hash())
 		hasMarker := rawdb.HasCommitMinorBlock(db, block.Hash())
-		if !hasBody && hasMarker {
-			// Marker=present, body=absent: verify HasBlock correctly returns false.
-			// Before the fix, HasBlock returned IsMinorBlockCommittedByHash (true here),
-			// which falsely indicated the block was present and caused "unknown ancestor".
-			if sb.MinorBlockChain.HasBlock(block.Hash()) {
-				stop()
-				t.Fatalf("iter %d: Bug 1 regression: HasBlock returns true when body is absent — "+
-					"HasBlock must check the block body directly, not the commit marker", i)
-			}
+		// Invariant: a commit marker is never present without its body. If it is,
+		// either CommitMinorBlockByHash's body-check or DeleteMinorBlock's
+		// marker-deletion has regressed, and HasCommittedBlock would report a
+		// block whose body is gone — the "unknown ancestor" bug.
+		if hasMarker && !hasBody {
+			stop()
+			t.Fatalf("iter %d: body/marker inconsistency: commit marker present but body absent — "+
+				"CommitMinorBlockByHash must not write the marker for a deleted body, and "+
+				"DeleteMinorBlock must delete body and marker together", i)
 		}
 		stop()
 	}
@@ -333,12 +334,15 @@ func TestAddMinorBlock_CommitMarkerPresentAfterBlock(t *testing.T) {
 	}
 }
 
-// TestAddMinorBlock_MarkerBodyConsistencyUnderRace verifies the Bug 1 fix
-// for AddMinorBlock: when a concurrent SetHead deletes the block body, HasBlock
-// must return false, not true.
+// TestAddMinorBlock_MarkerBodyConsistencyUnderRace asserts the body/marker
+// consistency invariant under a concurrent AddMinorBlock vs SetHead: the commit
+// marker is never present while the body is absent.
 //
-// Same semantics as TestAddBlockListForSync_MarkerBodyConsistencyUnderRace:
-// we do not assert the bad state never occurs; we assert HasBlock handles it.
+// Same invariant and rationale as
+// TestAddBlockListForSync_MarkerBodyConsistencyUnderRace: CommitMinorBlockByHash
+// checks body-presence under m.mu before writing the marker, and
+// rawdb.DeleteMinorBlock deletes body and marker together. This test guards both
+// against regression.
 //
 // Run with: go test -race ./cluster/shard/... -run TestAddMinorBlock_MarkerBodyConsistencyUnderRace
 func TestAddMinorBlock_MarkerBodyConsistencyUnderRace(t *testing.T) {
@@ -377,12 +381,12 @@ func TestAddMinorBlock_MarkerBodyConsistencyUnderRace(t *testing.T) {
 
 		hasBody := rawdb.HasBlock(db, blockAFork.Hash())
 		hasMarker := rawdb.HasCommitMinorBlock(db, blockAFork.Hash())
-		if !hasBody && hasMarker {
-			if sb.MinorBlockChain.HasBlock(blockAFork.Hash()) {
-				stop()
-				t.Fatalf("iter %d: Bug 1 regression: HasBlock returns true when body is absent — "+
-					"HasBlock must check the block body directly, not the commit marker", i)
-			}
+		// Invariant: a commit marker is never present without its body.
+		if hasMarker && !hasBody {
+			stop()
+			t.Fatalf("iter %d: body/marker inconsistency: commit marker present but body absent — "+
+				"CommitMinorBlockByHash must not write the marker for a deleted body, and "+
+				"DeleteMinorBlock must delete body and marker together", i)
 		}
 		stop()
 	}
@@ -428,5 +432,47 @@ func TestAddBlockListForSync_RecoversXShardListOnRetry(t *testing.T) {
 	if sb.MinorBlockChain.CurrentBlock().Hash() != block.Hash() {
 		t.Errorf("chain tip must advance to block %s after retry, got %s",
 			block.Hash().Hex(), sb.MinorBlockChain.CurrentBlock().Hash().Hex())
+	}
+}
+
+// TestNewMinorBlock_RecoversUncommittedBodyOnRetry verifies that NewMinorBlock
+// does not strand a block whose body is present but whose commit marker is
+// absent (a prior AddMinorBlock inserted the body, then failed before commit).
+//
+// The block passes NewMinorBlock's HasCommittedBlock guard (marker absent), so
+// it reaches the pre-validation ValidateBlock call. If that call used force=false,
+// HasBlockAndState would return ErrKnownBlock and NewMinorBlock would return nil
+// before delegating to AddMinorBlock — the uncommitted body would never be
+// committed. NewMinorBlock must validate with force=true so AddMinorBlock's
+// force=true recovery path runs and writes the marker.
+func TestNewMinorBlock_RecoversUncommittedBodyOnRetry(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	engine := new(consensus.FakeEngine)
+	genesis := sb.MinorBlockChain.CurrentBlock()
+	blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
+	block := blocks[0]
+
+	// Simulate partial failure: body written to DB, commit marker absent.
+	if _, err := sb.MinorBlockChain.InsertChain([]types.IBlock{block}, false); err != nil {
+		t.Fatalf("pre-insert body: %v", err)
+	}
+	if !rawdb.HasBlock(db, block.Hash()) {
+		t.Fatal("block body must be present after InsertChain")
+	}
+	if rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Fatal("commit marker must be absent — simulating partial failure")
+	}
+
+	// Re-deliver the block over P2P. Must not be dropped as ErrKnownBlock; must
+	// reach AddMinorBlock and commit.
+	if err := sb.NewMinorBlock("peer-1", block); err != nil {
+		t.Fatalf("NewMinorBlock on retry: %v", err)
+	}
+
+	if !rawdb.HasCommitMinorBlock(db, block.Hash()) {
+		t.Error("commit marker must be written after NewMinorBlock retry — " +
+			"uncommitted body must be validated with force=true and reach AddMinorBlock recovery")
 	}
 }
