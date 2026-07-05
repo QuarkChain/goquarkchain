@@ -24,6 +24,13 @@ import (
 var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
+
+	// ErrBodyDeleted is returned when CommitMinorBlockByHash reports that the
+	// block body was removed (e.g. by a concurrent reorg/SetHead) before the
+	// commit marker could be written. It is a transient condition: the block is
+	// left UNCOMMITTED and the operation may be retried once the chain settles.
+	// Callers can test for it with errors.Is(err, ErrBodyDeleted).
+	ErrBodyDeleted = errors.New("block body deleted before commit")
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -433,7 +440,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// Returns false when a concurrent reorg deleted the body; treat as uncommitted.
 	if !s.MinorBlockChain.CommitMinorBlockByHash(block.Hash()) {
 		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", block.Hash().Hex())
-		return fmt.Errorf("block body deleted: %s", block.Hash().Hex())
+		return fmt.Errorf("%w: %s", ErrBodyDeleted, block.Hash().Hex())
 	}
 
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
@@ -531,7 +538,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		blockHash := header.Hash()
 		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
 			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
-			return fmt.Errorf("block body deleted: %s", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
 		}
 		s.mBPool.delBlockInPool(blockHash)
 	}

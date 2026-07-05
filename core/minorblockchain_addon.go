@@ -1072,9 +1072,15 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 	}
 
-	// No change to root tip
-	if rBlock.TotalDifficulty().Cmp(m.rootTip.TotalDifficulty()) <= 0 {
-		if !m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
+	// No change to root tip. Snapshot rootTip under mu: it is a plain field
+	// written under mu elsewhere in this function (and by CreateBlockToMine's
+	// reader), so this early-return read must take mu too rather than rely on
+	// the caller's serialization.
+	m.mu.Lock()
+	curRootTip := m.rootTip
+	m.mu.Unlock()
+	if rBlock.TotalDifficulty().Cmp(curRootTip.TotalDifficulty()) <= 0 {
+		if !m.isSameRootChain(curRootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 			return false, ErrNotSameRootChain
 		}
 		return false, nil

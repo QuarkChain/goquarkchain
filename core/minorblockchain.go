@@ -551,11 +551,19 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 	return m.genesisBlock
 }
 
+// HasCommittedBlock reports whether the block is both stored (body present) and
+// committed (commit marker written by the shard layer after distributed
+// coordination). This is stricter than HasBlock: a body may exist locally after
+// InsertChain while the block is still UNCOMMITTED until CommitMinorBlockByHash
+// runs. Sync/commit-status logic must use this, not HasBlock, to avoid treating
+// an uncommitted body as final.
 func (m *MinorBlockChain) HasCommittedBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(m.db, hash) && rawdb.HasCommitMinorBlock(m.db, hash)
 }
 
-// HasBlock checks if a block is fully present in the database or not.
+// HasBlock checks if a block body is present in the database. It says nothing
+// about commit status — use HasCommittedBlock when the caller needs the block
+// to be both present and committed.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(m.db, hash)
 }
