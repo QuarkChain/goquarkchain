@@ -1185,7 +1185,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 		}
 
 		if force && m.HasBlockAndState(mBlock.Hash()) {
-			// Body already exists — re-execution only, do not write state again.
+			// Body & state already exists — re-execution only, do not write state again.
 			// Use continue so that any subsequent blocks in the chain are still
 			// processed; an early return would silently drop them.
 			xShardList = append(xShardList, state.GetXShardList())

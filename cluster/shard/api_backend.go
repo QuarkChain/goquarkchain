@@ -25,11 +25,10 @@ var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
 
-	// ErrBodyDeleted is returned when CommitMinorBlockByHash reports that the
-	// block body was removed (e.g. by a concurrent reorg/SetHead) before the
-	// commit marker could be written. It is a transient condition: the block is
-	// left UNCOMMITTED and the operation may be retried once the chain settles.
-	// Callers can test for it with errors.Is(err, ErrBodyDeleted).
+	// ErrBodyDeleted is returned when the block body was deleted before the
+	// commit marker could be written. The block stays UNCOMMITTED and a later
+	// sync round re-fetches and commits it. Informational only: s.mu serializes
+	// the commit paths against body deletion, so this is not expected in practice.
 	ErrBodyDeleted = errors.New("block body deleted before commit")
 )
 
@@ -435,9 +434,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return err
 	}
 
-	// Commit to DB; CommitMinorBlockByHash holds m.mu internally so the
-	// check-and-write is atomic with concurrent callers on the same shard.
-	// Returns false when a concurrent reorg deleted the body; treat as uncommitted.
+	// Commit to DB; false means the body was deleted. See ErrBodyDeleted.
 	if !s.MinorBlockChain.CommitMinorBlockByHash(block.Hash()) {
 		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", block.Hash().Hex())
 		return fmt.Errorf("%w: %s", ErrBodyDeleted, block.Hash().Hex())
@@ -445,9 +442,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
-	}
-	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
 			return err
 		}
@@ -532,8 +526,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 
-	// CommitMinorBlockByHash holds m.mu so the check-and-write is atomic;
-	// if the body was deleted, return an error.
+	// Commit each block; false means the body was deleted. See ErrBodyDeleted.
 	for _, header := range uncommittedBlockHeaderList {
 		blockHash := header.Hash()
 		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {

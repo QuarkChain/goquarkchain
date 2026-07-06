@@ -1155,9 +1155,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 		m.genesisBlock = newGenesis
 		log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
+		m.mu.Lock()
 		if err := m.Reset(); err != nil {
+			m.mu.Unlock()
 			return false, err
 		}
+		m.mu.Unlock()
 	}
 
 	if m.CurrentBlock().Hash() != origHeaderTip.Hash() {
@@ -1165,7 +1168,19 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
 		if origBlock == nil || newBlock == nil {
-			// Reset() wiped origHeaderTip from the DB; nothing to rewrite.
+			// Reset() wiped origHeaderTip from the DB, so there is no index to
+			// rewrite. But currentBlock was rewound (e.g. to the new genesis)
+			// while currentEvmState still holds the pre-reset chain's state.
+			// Republish it against the current block so State()/getEvmStateByBlock
+			// don't serve stale state until the next updateTip.
+			curBlock := m.CurrentBlock()
+			newState, err := m.StateAt(curBlock.Root())
+			if err != nil {
+				return false, err
+			}
+			m.mu.Lock()
+			m.currentEvmState = newState
+			m.mu.Unlock()
 			return true, nil
 		}
 		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
