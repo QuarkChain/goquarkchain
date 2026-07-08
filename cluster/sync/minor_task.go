@@ -94,7 +94,9 @@ func NewMinorChainTask(
 			return ret, nil
 		},
 		needSkip: func(b blockchain) bool {
-			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() ||
+			tip := b.CurrentHeader()
+			if mTask.header.NumberU64() < tip.NumberU64() ||
+				(mTask.header.NumberU64() == tip.NumberU64() && b.HasCommittedBlock(tip.Hash())) ||
 				b.HasCommittedBlock(mTask.header.Hash()) {
 				return true
 			}
@@ -172,7 +174,7 @@ func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, er
 	}
 
 	mtip := b.CurrentHeader().(*types.MinorBlockHeader)
-	if m.header.Hash() == mtip.Hash() {
+	if m.header.Hash() == mtip.Hash() && b.HasCommittedBlock(mtip.Hash()) {
 		return mtip, nil
 	}
 
@@ -206,7 +208,7 @@ func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, er
 			}
 			preHeader = mh
 
-			if !b.HasCommittedBlock(mh.Hash()) {
+			if !b.HasCommittedBlock(mh.Hash()) && !b.HasBodyWithoutState(mh.Hash()) {
 				end = mh.Number - 1
 				continue
 			}

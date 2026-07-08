@@ -282,14 +282,14 @@ func (m *MinorBlockChain) loadLastState() error {
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Empty database, resetting chain")
-		return m.Reset()
+		return m.resetWithGenesisBlock(m.genesisBlock)
 	}
 	// Make sure the entire head block is available
 	currentBlock := m.GetMinorBlock(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Head block missing, resetting chain", "hash", head)
-		return m.Reset()
+		return m.resetWithGenesisBlock(m.genesisBlock)
 	}
 
 	// Make sure the state associated with the block is available
@@ -326,26 +326,50 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
 	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
-	// Rewind the header chain, deleting all block bodies until then
-	batch := m.db.NewBatch()
-	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
-		rawdb.DeleteMinorBlock(batch, block.Hash())
-		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(m.GetMinorBlock(block.ParentHash()))
+
+	newHead := m.CurrentBlock()
+	blocksToDelete := make([]*types.MinorBlock, 0)
+	for block := newHead; block != nil && block.NumberU64() > head; block = newHead {
+		blocksToDelete = append(blocksToDelete, block)
+		newHead = m.GetMinorBlock(block.ParentHash())
 	}
-	batch.Write()
-	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
+
+	var newState *state.StateDB
+	if newHead != nil {
+		if state, err := m.StateAt(newHead.GetMetaData().Root); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
-			m.currentBlock.Store(m.genesisBlock)
+			newHead = m.genesisBlock
+		} else {
+			newState = state
 		}
 	}
 
 	// If either blocks reached nil, reset to the genesis state
-	if currentBlock := m.CurrentBlock(); currentBlock == nil {
-		m.currentBlock.Store(m.genesisBlock)
+	if newHead == nil {
+		newHead = m.genesisBlock
 	}
-	rawdb.WriteHeadBlockHash(m.db, m.CurrentBlock().Hash())
+	if newState == nil {
+		state, err := m.StateAt(newHead.GetMetaData().Root)
+		if err != nil {
+			return err
+		}
+		newState = state
+	}
+
+	// Rewind the header chain only after the target state is known to be usable,
+	// so an error cannot leave the DB with deleted bodies but the old head.
+	batch := m.db.NewBatch()
+	for _, block := range blocksToDelete {
+		rawdb.DeleteMinorBlock(batch, block.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
+	}
+	if err := batch.Write(); err != nil {
+		return err
+	}
+
+	m.currentEvmState = newState
+	rawdb.WriteHeadBlockHash(m.db, newHead.Hash())
+	m.currentBlock.Store(newHead)
 
 	// Clear out any stale content from the caches
 	m.receiptsCache.Purge()
@@ -355,7 +379,7 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 	m.rootBlockCache.Purge()
 	m.lastConfirmCache.Purge()
 
-	return m.loadLastState()
+	return nil
 }
 
 // GasLimit returns the gas limit of the current HEAD block.
@@ -465,31 +489,83 @@ func (m *MinorBlockChain) StateCache() state.Database {
 	return m.stateCache
 }
 
-// reset purges the entire blockchain, restoring it to its genesis state.
+// Reset rewinds the chain back to its current genesis block, acquiring chainmu+mu itself.
 func (m *MinorBlockChain) Reset() error {
-	return m.ResetWithGenesisBlock(m.genesisBlock)
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.resetWithGenesisBlock(m.genesisBlock)
 }
 
-// ResetWithGenesisBlock purges the entire blockchain, restoring it to the
-// specified genesis state.
-//
-// Calls the unlocked setHead: every path that reaches here already holds the
-// relevant locks (SetHead holds chainmu+mu; AddRootBlock's genesis reset holds
-// chainmu; loadLastState runs during single-threaded init or from within
-// setHead which already holds them). Calling the exported SetHead here would
-// re-acquire chainmu/mu and self-deadlock.
+// ResetWithGenesisBlock rewinds the chain and reinstalls the given genesis block, acquiring chainmu+mu itself.
 func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error {
-	// Dump the entire block chain and purge the caches
-	if err := m.setHead(0); err != nil {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.resetWithGenesisBlock(genesis)
+}
+
+// resetWithGenesisBlock requires caller serialization:
+// either chainmu+mu are held, or the chain is still in single-threaded init.
+func (m *MinorBlockChain) resetWithGenesisBlock(genesis *types.MinorBlock) error {
+	newState, err := m.resetWithGenesisBlockWithoutHeadPublish(genesis)
+	if err != nil {
 		return err
+	}
+	m.currentEvmState = newState
+	rawdb.WriteHeadBlockHash(m.db, genesis.Hash())
+	m.currentBlock.Store(genesis)
+	return nil
+}
+
+func (m *MinorBlockChain) resetWithGenesisBlockWithoutHeadPublish(genesis *types.MinorBlock) (*state.StateDB, error) {
+	log.Warn(m.logInfo+" Rewinding blockchain", "target", 0)
+	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", 0)
+
+	batch := m.db.NewBatch()
+	for block := m.CurrentBlock(); block != nil && block.NumberU64() > 0; block = m.GetMinorBlock(block.ParentHash()) {
+		rawdb.DeleteMinorBlock(batch, block.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
+	}
+	if err := batch.Write(); err != nil {
+		return nil, err
 	}
 
 	rawdb.WriteMinorBlock(m.db, genesis)
 
 	m.genesisBlock = genesis
-	m.insert(m.genesisBlock)
-	m.currentBlock.Store(m.genesisBlock)
+	newState, err := m.StateAt(m.genesisBlock.Root())
+	if err != nil {
+		return nil, err
+	}
+	m.writeCanonicalBlockIndex(m.genesisBlock)
+	m.receiptsCache.Purge()
+	m.blockCache.Purge()
+	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
 
+	return newState, nil
+}
+
+func (m *MinorBlockChain) deleteCanonicalHashesAbove(head uint64) error {
+	batch := m.db.NewBatch()
+	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.GetMinorBlock(block.ParentHash()) {
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
+	}
+	if err := batch.Write(); err != nil {
+		return err
+	}
+	m.receiptsCache.Purge()
+	m.blockCache.Purge()
+	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
 	return nil
 }
 
@@ -546,6 +622,13 @@ func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	m.currentBlock.Store(block)
 }
 
+// writeCanonicalBlockIndex rewrites the number-to-hash index without publishing
+// a new head. Root-block reorg uses this to keep CurrentBlock unchanged until
+// rootTip, canonical indexes, and currentEvmState are ready together.
+func (m *MinorBlockChain) writeCanonicalBlockIndex(block *types.MinorBlock) {
+	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
+}
+
 // Genesis retrieves the chain's genesis block.
 func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 	return m.genesisBlock
@@ -566,6 +649,14 @@ func (m *MinorBlockChain) HasCommittedBlock(hash common.Hash) bool {
 // to be both present and committed.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(m.db, hash)
+}
+
+// HasBodyWithoutState reports whether a block body is present but its state trie
+// is missing. This is useful as a sidechain sync anchor, but not as a completed
+// commit-status check.
+func (m *MinorBlockChain) HasBodyWithoutState(hash common.Hash) bool {
+	block := m.GetMinorBlock(hash)
+	return block != nil && !m.HasState(block.Root())
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -1046,6 +1137,20 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock, force bool) (int, er
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
 func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, force bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	n, xShardBlocks, err := m.InsertChainForDepositsWithBlocks(chain, force)
+	xShardList := make([][]*types.CrossShardTransactionDeposit, 0, len(xShardBlocks))
+	for _, xShardBlock := range xShardBlocks {
+		xShardList = append(xShardList, xShardBlock.XShardList)
+	}
+	return n, xShardList, err
+}
+
+type XShardListWithBlock struct {
+	Block      *types.MinorBlock
+	XShardList []*types.CrossShardTransactionDeposit
+}
+
+func (m *MinorBlockChain) InsertChainForDepositsWithBlocks(chain []types.IBlock, force bool) (int, []XShardListWithBlock, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1089,8 +1194,8 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, force boo
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, force bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
-	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, force bool) (int, []interface{}, []*types.Log, []XShardListWithBlock, error) {
+	xShardList := make([]XShardListWithBlock, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
 		return 0, nil, nil, xShardList, nil
@@ -1188,7 +1293,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 			// Body & state already exists — re-execution only, do not write state again.
 			// Use continue so that any subsequent blocks in the chain are still
 			// processed; an early return would silently drop them.
-			xShardList = append(xShardList, state.GetXShardList())
+			xShardList = append(xShardList, XShardListWithBlock{Block: mBlock, XShardList: state.GetXShardList()})
 			continue
 		}
 		updateTip, err := m.updateTip(state, mBlock)
@@ -1222,7 +1327,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 		stats.usedGas += usedGas
 
 		//	stats.report(chain, it.index)
-		xShardList = append(xShardList, state.GetXShardList())
+		xShardList = append(xShardList, XShardListWithBlock{Block: mBlock, XShardList: state.GetXShardList()})
 	}
 	// Any blocks remaining here? The only ones we care about are the future ones
 	if !qkcCommon.IsNil(block) && err == ErrFutureBlock {
@@ -1253,7 +1358,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, fo
 //
 // The method writes all (header-and-body-valid) blocks to disk, then tries to
 // switch over to the new chain if the TD exceeded the current chain.
-func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool) (int, []interface{}, []*types.Log, []XShardListWithBlock, error) {
 	var (
 		current      = m.CurrentBlock().NumberU64()
 		externHeight = uint64(0)
@@ -1315,13 +1420,14 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool) (int, 
 
 		parent = m.GetBlock(parent.ParentHash())
 	}
-	if parent == nil {
+	if qkcCommon.IsNil(parent) {
 		return it.index, nil, nil, nil, errors.New("missing parent")
 	}
 	// Import all the pruned blocks to make the state available
 	var (
-		blocks []types.IBlock
-		memory common.StorageSize
+		blocks     []types.IBlock
+		memory     common.StorageSize
+		xShardList []XShardListWithBlock
 	)
 	for i := len(hashes) - 1; i >= 0; i-- {
 		// Append the next block to our batch
@@ -1334,29 +1440,41 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool) (int, 
 		// memory here.
 		if len(blocks) >= 2048 || memory > 64*1024*1024 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, _, _, err := m.insertChain(blocks, false, force); err != nil {
+			_, _, _, segmentXShardList, err := m.insertChain(blocks, false, force)
+			if err != nil {
 				return 0, nil, nil, nil, err
 			}
+			xShardList = append(xShardList, segmentXShardList...)
 			blocks, memory = blocks[:0], 0
 
 			// If the chain is terminating, stop processing blocks
 			if atomic.LoadInt32(&m.procInterrupt) == 1 {
 				log.Debug("Premature abort during blocks processing")
-				return 0, nil, nil, nil, nil
+				return 0, nil, nil, xShardList, nil
 			}
 		}
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return m.insertChain(blocks, false, force)
+		n, events, logs, segmentXShardList, err := m.insertChain(blocks, false, force)
+		xShardList = append(xShardList, segmentXShardList...)
+		return n, events, logs, xShardList, err
 	}
-	return 0, nil, nil, nil, nil
+	return 0, nil, nil, xShardList, nil
 }
 
 // reorgs takes two blocks, an old chain and a new chain and will reconstruct the blocks and inserts them
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
+	return m.reorgInternal(oldBlock, newBlock, true)
+}
+
+func (m *MinorBlockChain) reorgWithoutHeadPublish(oldBlock, newBlock types.IBlock) error {
+	return m.reorgInternal(oldBlock, newBlock, false)
+}
+
+func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publishHead bool) error {
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1447,8 +1565,17 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if err := m.setHead(newBlockNumber); err != nil {
-			return err
+		if publishHead {
+			if err := m.setHead(newBlockNumber); err != nil {
+				return err
+			}
+		} else {
+			// Root-block reorg only rewrites the canonical view here. Keep the
+			// bodies above the target as sidechain data so a later root reorg can
+			// switch back without requiring a full re-sync.
+			if err := m.deleteCanonicalHashesAbove(newBlockNumber); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1461,12 +1588,18 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 
-	batch.Write()
+	if err := batch.Write(); err != nil {
+		return err
+	}
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
-		m.insert(newChain[i].(*types.MinorBlock))
+		if publishHead {
+			m.insert(newChain[i].(*types.MinorBlock))
+		} else {
+			m.writeCanonicalBlockIndex(newChain[i].(*types.MinorBlock))
+		}
 		// write lookup entries for hash based transaction/receipt searches
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err

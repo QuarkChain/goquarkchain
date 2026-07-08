@@ -350,6 +350,12 @@ func (bc *RootBlockChain) HasCommittedBlock(hash common.Hash) bool {
 	return bc.HasBlock(hash)
 }
 
+// HasBodyWithoutState satisfies the sync.blockchain interface. Root sync does
+// not use the minor-chain body-only state reconstruction marker.
+func (bc *RootBlockChain) HasBodyWithoutState(hash common.Hash) bool {
+	return false
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *RootBlockChain) GetBlock(hash common.Hash) types.IBlock {

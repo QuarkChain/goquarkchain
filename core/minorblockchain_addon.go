@@ -510,10 +510,9 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	// reWriteBlockIndexTo publishes currentEvmState together with the index
-	// rewrite (it recomputes StateAt(block.Root()) internally), so no separate
-	// currentEvmState assignment is needed here.
-	err = m.reWriteBlockIndexTo(nil, block)
+	m.chainmu.Lock()
+	err = m.reWriteBlockIndexTo(nil, block, nil, nil)
+	m.chainmu.Unlock()
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
 	return err
@@ -716,7 +715,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
 	gasUsed := new(uint64)
-	ret, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
+	ret, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, mBlock.Header(), evmTx, gasUsed, *m.GetVMConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -897,20 +896,25 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
-	log.Debug(m.logInfo+" CreateBlockToMine", "current", m.CurrentBlock().Number())
+	m.mu.RLock()
+	currRootTip := m.rootTip
+	prevBlock := m.CurrentBlock()
+	m.mu.RUnlock()
+
+	log.Debug(m.logInfo+" CreateBlockToMine", "current", prevBlock.Number())
 	if includeTx == nil {
 		t := true
 		includeTx = &t
 	}
 	realCreateTime := uint64(time.Now().Unix())
 	if createTime == nil {
-		if realCreateTime < m.CurrentBlock().Time()+1 {
-			realCreateTime = m.CurrentBlock().Time() + 1
+		if realCreateTime < prevBlock.Time()+1 {
+			realCreateTime = prevBlock.Time() + 1
 		}
 	} else {
 		realCreateTime = *createTime
 	}
-	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, m.CurrentBlock())
+	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, prevBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -933,11 +937,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-
-	m.mu.Lock()
-	currRootTip := m.rootTip
-	prevBlock := m.CurrentBlock()
-	m.mu.Unlock()
 
 	currRootTipHash := currRootTip.Hash()
 	ancestorRootHeader := m.GetRootBlockByHash(prevBlock.PrevRootBlockHash())
@@ -1086,28 +1085,19 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		return false, nil
 	}
 
-	// Hold chainmu across the entire rewind + genesis-reset + index-rewrite so
-	// that a root-block reorg is mutually exclusive with the insertChain
-	// pipeline (which runs under chainmu). Both reorg entry points — the insert
-	// path (WriteBlockWithState) and this one (via reWriteBlockIndexTo) —
-	// are now serialized on chainmu. Lock order is always chainmu (outer) -> mu
-	// (inner), matching InsertChainForDeposits -> WriteBlockWithState, so there
-	// is no AB-BA deadlock. The genesis-reset path below calls Reset() ->
-	// ResetWithGenesisBlock, which uses the unlocked setHead (not the exported
-	// SetHead) precisely so it does not try to re-acquire chainmu here.
+	// Hold chainmu across target selection and index rewrite so root-block
+	// reorg is mutually exclusive with insertChain.
 	m.chainmu.Lock()
 	defer m.chainmu.Unlock()
 
-	// Update rootTip, confirmedHeaderTip, and rewind currentBlock under mu so
-	// readers (e.g. CreateBlockToMine) always see a consistent snapshot.
-	m.mu.Lock()
-	m.rootTip = rBlock
+	var confirmedTip *types.MinorBlock
 	if shardHeader == nil {
-		m.confirmedHeaderTip = nil
+		confirmedTip = nil
 	} else {
-		m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
+		confirmedTip = m.GetMinorBlock(shardHeader.Hash())
 	}
 	origHeaderTip := m.CurrentBlock()
+	targetBlock := origHeaderTip
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
@@ -1116,29 +1106,26 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			newTip := m.GetMinorBlock(shardHeader.Hash())
 			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", newTip == nil)
 			if newTip != nil {
-				m.currentBlock.Store(newTip)
+				targetBlock = newTip
 			}
 		}
 	}
-	// Rewind currentBlock until it is on the same root chain as rootTip.
-	// Stop at genesis (NumberU64==0); the genesis reset below runs after this
-	// mu.Unlock() because Reset() -> ResetWithGenesisBlock -> setHead(0) mutates
-	// currentBlock, and setHead assumes its caller already holds the locks. We
-	// still hold m.chainmu across the reset, so insertChain remains excluded
-	// throughout — only mu is released here.
-	for m.CurrentBlock().NumberU64() != 0 &&
-		!m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
-		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
+	// Keep the rewind target local. CurrentBlock is published only after the
+	// root tip, canonical indexes, and currentEvmState are ready together.
+	for targetBlock.NumberU64() != 0 &&
+		!m.isSameRootChain(rBlock, m.GetRootBlockByHash(targetBlock.PrevRootBlockHash())) {
+		preBlock := m.GetMinorBlock(targetBlock.ParentHash())
+		if preBlock == nil {
+			return false, ErrMinorBlockIsNil
+		}
 		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().TerminalString())
-		m.currentBlock.Store(preBlock)
+		targetBlock = preBlock
 	}
-	needGenesisReset := m.CurrentBlock().NumberU64() == 0 &&
-		!m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash()))
-	snapshotRootTip := m.rootTip
-	m.mu.Unlock()
+	needGenesisReset := targetBlock.NumberU64() == 0 &&
+		!m.isSameRootChain(rBlock, m.GetRootBlockByHash(targetBlock.PrevRootBlockHash()))
 
 	if needGenesisReset {
-		genesisRootHeader := snapshotRootTip
+		genesisRootHeader := rBlock
 		genesisHeight := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 		if genesisRootHeader.Number() < uint32(genesisHeight) {
 			return false, errors.New("genesis root height small than config")
@@ -1153,45 +1140,37 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if newGenesis == nil {
 			panic(errors.New("get genesis block is nil"))
 		}
-		m.genesisBlock = newGenesis
-		log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
+		log.Warn(m.logInfo+" ready to reset genesis", "number", newGenesis.Number(), "hash", newGenesis.Hash().String())
 		m.mu.Lock()
-		if err := m.Reset(); err != nil {
+		newState, err := m.resetWithGenesisBlockWithoutHeadPublish(newGenesis)
+		if err != nil {
 			m.mu.Unlock()
 			return false, err
 		}
+		m.rootTip = rBlock
+		m.confirmedHeaderTip = confirmedTip
+		m.currentEvmState = newState
+		rawdb.WriteHeadBlockHash(m.db, newGenesis.Hash())
+		m.currentBlock.Store(newGenesis)
 		m.mu.Unlock()
+		return true, nil
 	}
 
-	if m.CurrentBlock().Hash() != origHeaderTip.Hash() {
-		headerTipHash := m.CurrentBlock().Hash()
+	if targetBlock.Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
-		newBlock := m.GetMinorBlock(headerTipHash)
-		if origBlock == nil || newBlock == nil {
-			// Reset() wiped origHeaderTip from the DB, so there is no index to
-			// rewrite. But currentBlock was rewound (e.g. to the new genesis)
-			// while currentEvmState still holds the pre-reset chain's state.
-			// Republish it against the current block so State()/getEvmStateByBlock
-			// don't serve stale state until the next updateTip.
-			curBlock := m.CurrentBlock()
-			newState, err := m.StateAt(curBlock.Root())
-			if err != nil {
-				return false, err
-			}
-			m.mu.Lock()
-			m.currentEvmState = newState
-			m.mu.Unlock()
-			return true, nil
+		if origBlock == nil || targetBlock == nil {
+			return false, ErrMinorBlockIsNil
 		}
-		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
-		// We already hold chainmu (deferred at the top of AddRootBlock), so the
-		// reorg inside reWriteBlockIndexTo stays mutually exclusive with the
-		// insertChain pipeline; reWriteBlockIndexTo takes only mu to publish the
-		// index rewrite and the new currentEvmState together.
-		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
+		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", targetBlock.Number(), "new_hash", targetBlock.Hash().TerminalString())
+		if err := m.reWriteBlockIndexTo(origBlock, targetBlock, rBlock, confirmedTip); err != nil {
 			return false, err
 		}
+		return true, nil
 	}
+	m.mu.Lock()
+	m.rootTip = rBlock
+	m.confirmedHeaderTip = confirmedTip
+	m.mu.Unlock()
 	return true, nil
 }
 
@@ -1408,18 +1387,10 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 	return 1
 }
 
-// reWriteBlockIndexTo recomputes the new head state and, under mu, reorgs the
-// canonical index and publishes the new currentEvmState together, so a reader
-// under mu can never observe a new currentBlock paired with a stale index or
-// currentEvmState. newState is computed before locking (StateAt is lock-free)
-// so no trie work happens under mu.
-//
-// It takes only mu, NOT chainmu. The reorg can rewind the head via setHead and
-// so must be mutually exclusive with the insertChain pipeline, but that
-// exclusion is provided by the caller: AddRootBlock already holds chainmu for
-// the whole reorg, and InitFromRootBlock runs single-threaded during init.
-// Callers that need exclusion from insertChain must hold chainmu themselves.
-func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
+// reWriteBlockIndexTo rewrites the canonical index and publishes
+// currentEvmState/head together. Callers that need exclusion from insertChain
+// must already hold chainmu.
+func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock, rootTip *types.RootBlock, confirmedTip *types.MinorBlock) error {
 	newState, err := m.StateAt(newBlock.Root())
 	if err != nil {
 		return err
@@ -1429,10 +1400,16 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
-	if err := m.reorg(oldBlock, newBlock); err != nil {
+	if err := m.reorgWithoutHeadPublish(oldBlock, newBlock); err != nil {
 		return err
 	}
+	if rootTip != nil {
+		m.rootTip = rootTip
+		m.confirmedHeaderTip = confirmedTip
+	}
 	m.currentEvmState = newState
+	rawdb.WriteHeadBlockHash(m.db, newBlock.Hash())
+	m.currentBlock.Store(newBlock)
 	return nil
 }
 
