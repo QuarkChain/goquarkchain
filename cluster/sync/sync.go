@@ -15,6 +15,7 @@ import (
 type blockchain interface {
 	HasBlock(common.Hash) bool
 	HasCommittedBlock(common.Hash) bool
+	HasBodyWithoutState(common.Hash) bool
 	AddBlock(types.IBlock) error
 	CurrentHeader() types.IHeader
 	Validator() core.Validator

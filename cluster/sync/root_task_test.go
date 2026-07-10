@@ -148,6 +148,13 @@ func (bc *mockblockchain) HasCommittedBlock(hash common.Hash) bool {
 	return bc.mbc.HasCommittedBlock(hash)
 }
 
+func (bc *mockblockchain) HasBodyWithoutState(hash common.Hash) bool {
+	if bc.rbc != nil {
+		return false
+	}
+	return bc.mbc.HasBodyWithoutState(hash)
+}
+
 func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 	if bc.rbc != nil {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})

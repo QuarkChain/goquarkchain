@@ -565,6 +565,14 @@ func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(m.db, hash)
 }
 
+// HasBodyWithoutState reports whether the block body exists while its state
+// trie is missing. Such a block can anchor sidechain body download, but it is
+// not a committed block.
+func (m *MinorBlockChain) HasBodyWithoutState(hash common.Hash) bool {
+	block := m.GetMinorBlock(hash)
+	return block != nil && !m.HasState(block.Root())
+}
+
 // HasState checks if state trie is fully present in the database or not.
 func (m *MinorBlockChain) HasState(hash common.Hash) bool {
 	_, err := m.stateCache.OpenTrie(hash)
@@ -1043,6 +1051,24 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock, isCheckDB bool) (int
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
 func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	n, xShardBlocks, err := m.insertChainForDepositsWithBlocks(chain, isCheckDB, isCheckDB)
+	xShardList := make([][]*types.CrossShardTransactionDeposit, 0, len(xShardBlocks))
+	for _, xShardBlock := range xShardBlocks {
+		xShardList = append(xShardList, xShardBlock.XShardList)
+	}
+	return n, xShardList, err
+}
+
+type XShardListWithBlock struct {
+	Block      *types.MinorBlock
+	XShardList []*types.CrossShardTransactionDeposit
+}
+
+func (m *MinorBlockChain) InsertChainForDepositsWithBlocks(chain []types.IBlock, force bool) (int, []XShardListWithBlock, error) {
+	return m.insertChainForDepositsWithBlocks(chain, force, false)
+}
+
+func (m *MinorBlockChain) insertChainForDepositsWithBlocks(chain []types.IBlock, force bool, isCheckDB bool) (int, []XShardListWithBlock, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1061,7 +1087,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	// Pre-checks passed, start the full block imports
 	m.wg.Add(1)
 	m.chainmu.Lock()
-	n, events, logs, xShardList, err := m.insertChain(chain, true, isCheckDB)
+	n, events, logs, xShardList, err := m.insertChain(chain, true, force, isCheckDB)
 	m.chainmu.Unlock()
 	m.wg.Done()
 
@@ -1086,8 +1112,8 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, isCheckDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
-	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, force bool, isCheckDB bool) (int, []interface{}, []*types.Log, []XShardListWithBlock, error) {
+	xShardList := make([]XShardListWithBlock, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
 		return 0, nil, nil, xShardList, nil
@@ -1110,12 +1136,12 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 	)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, m.Validator(), isCheckDB)
+	it := newInsertIterator(chain, m.Validator(), force)
 	block, err := it.next()
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough
 	case err == ErrPrunedAncestor:
-		return m.insertSidechain(it, isCheckDB)
+		return m.insertSidechain(it, force, isCheckDB)
 
 	// First block is future, shove it (and all children) to the future queue (unknown ancestor)
 	case err == ErrFutureBlock || (err == ErrUnknownAncestor && m.futureBlocks.Contains(it.first().ParentHash())):
@@ -1181,15 +1207,18 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 
-		if isCheckDB && m.HasBlockAndState(mBlock.Hash()) {
-			xShardList = append(xShardList, state.GetXShardList())
+		if force && m.HasBlockAndState(mBlock.Hash()) {
+			// Body and state already exist. Re-execute only to recover the
+			// outgoing x-shard list, then keep processing later blocks.
+			xShardList = append(xShardList, XShardListWithBlock{Block: mBlock, XShardList: state.GetXShardList()})
 			continue
 		}
 
 		if isCheckDB {
-			xShardList = append(xShardList, state.GetXShardList())
+			xShardList = append(xShardList, XShardListWithBlock{Block: mBlock, XShardList: state.GetXShardList()})
 			return 0, events, coalescedLogs, xShardList, nil
 		}
+
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1221,7 +1250,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		stats.usedGas += usedGas
 
 		//	stats.report(chain, it.index)
-		xShardList = append(xShardList, state.GetXShardList())
+		xShardList = append(xShardList, XShardListWithBlock{Block: mBlock, XShardList: state.GetXShardList()})
 	}
 	// Any blocks remaining here? The only ones we care about are the future ones
 	if !qkcCommon.IsNil(block) && err == ErrFutureBlock {
@@ -1252,7 +1281,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 //
 // The method writes all (header-and-body-valid) blocks to disk, then tries to
 // switch over to the new chain if the TD exceeded the current chain.
-func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool, isCheckDB bool) (int, []interface{}, []*types.Log, []XShardListWithBlock, error) {
 	var (
 		current      = m.CurrentBlock().NumberU64()
 		externHeight = uint64(0)
@@ -1314,13 +1343,14 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 
 		parent = m.GetBlock(parent.ParentHash())
 	}
-	if parent == nil {
+	if qkcCommon.IsNil(parent) {
 		return it.index, nil, nil, nil, errors.New("missing parent")
 	}
 	// Import all the pruned blocks to make the state available
 	var (
-		blocks []types.IBlock
-		memory common.StorageSize
+		blocks     []types.IBlock
+		memory     common.StorageSize
+		xShardList []XShardListWithBlock
 	)
 	for i := len(hashes) - 1; i >= 0; i-- {
 		// Append the next block to our batch
@@ -1333,23 +1363,27 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 		// memory here.
 		if len(blocks) >= 2048 || memory > 64*1024*1024 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, _, _, err := m.insertChain(blocks, false, isCheckDB); err != nil {
+			_, _, _, segmentXShardList, err := m.insertChain(blocks, false, force, isCheckDB)
+			if err != nil {
 				return 0, nil, nil, nil, err
 			}
+			xShardList = append(xShardList, segmentXShardList...)
 			blocks, memory = blocks[:0], 0
 
 			// If the chain is terminating, stop processing blocks
 			if atomic.LoadInt32(&m.procInterrupt) == 1 {
 				log.Debug("Premature abort during blocks processing")
-				return 0, nil, nil, nil, nil
+				return 0, nil, nil, xShardList, nil
 			}
 		}
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return m.insertChain(blocks, false, isCheckDB)
+		n, events, logs, segmentXShardList, err := m.insertChain(blocks, false, force, isCheckDB)
+		xShardList = append(xShardList, segmentXShardList...)
+		return n, events, logs, xShardList, err
 	}
-	return 0, nil, nil, nil, nil
+	return 0, nil, nil, xShardList, nil
 }
 
 // reorgs takes two blocks, an old chain and a new chain and will reconstruct the blocks and inserts them
