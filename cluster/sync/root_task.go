@@ -59,6 +59,9 @@ func NewRootChainTask(
 				rTask.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
+			if !qcom.IsNil(ancestor) && rTask.header.GetTotalDifficulty().Cmp(ancestor.GetTotalDifficulty()) < 0 {
+				return nil, errors.New("ancestor's total difficulty is bigger than current")
+			}
 			return ancestor, nil
 		},
 		getHeaders: func(startHeader types.IHeader) ([]types.IHeader, error) {
@@ -226,9 +229,6 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 		return nil, errors.New("No common ancestor found for root chain")
 	}
 
-	if r.header.ToTalDifficulty.Cmp(bestAncestor.ToTalDifficulty) < 0 {
-		return nil, errors.New("ancestor's total difficulty is bigger than current")
-	}
 	return bestAncestor, nil
 }
 

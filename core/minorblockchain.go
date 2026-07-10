@@ -1565,16 +1565,20 @@ func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publish
 		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if publishHead {
-			if err := m.setHead(newBlockNumber); err != nil {
-				return err
-			}
-		} else {
-			// Root-block reorg only rewrites the canonical view here. Keep the
-			// bodies above the target as sidechain data so a later root reorg can
-			// switch back without requiring a full re-sync.
-			if err := m.deleteCanonicalHashesAbove(newBlockNumber); err != nil {
-				return err
+		// Only rewind when old canonical blocks are actually being dropped. A
+		// descendant-with-gap has oldChain empty and relies on updateTip's state.
+		if len(oldChain) > 0 {
+			if publishHead {
+				if err := m.setHead(newBlockNumber); err != nil {
+					return err
+				}
+			} else {
+				// Root-block reorg only rewrites the canonical view here. Keep the
+				// bodies above the target as sidechain data so a later root reorg can
+				// switch back without requiring a full re-sync.
+				if err := m.deleteCanonicalHashesAbove(newBlockNumber); err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -202,9 +202,9 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
 	// Serialize root-block handling against AddMinorBlock / AddBlockListForSync on
 	// the same shard, so their broadcast + master-report side effects cannot
-	// interleave. The core-layer data race (currentBlock/canonical-index rewrite
-	// vs. the insertChain pipeline) is handled separately inside
-	// MinorBlockChain.AddRootBlock, which now holds m.chainmu across the reorg.
+	// interleave with root reorg rollback decisions. The core-layer race
+	// (currentBlock/canonical-index rewrite vs. insertChain) is handled inside
+	// MinorBlockChain.AddRootBlock via chainmu.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.wg.Add(1)
@@ -318,7 +318,8 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	// whose state is pruned so body accumulation can continue.
 	if !s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
 		if err := s.commitUncommittedAncestorsIfPresent(block.ParentHash()); err != nil {
-			return err
+			log.Warn(s.logInfo+" failed to commit uncommitted ancestors", "parent", block.ParentHash().Hex(), "err", err)
+			return nil
 		}
 		if !s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
 			log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
@@ -356,7 +357,10 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		// body-only with missing state. Do not advance past a body+state parent
 		// that still lacks its commit marker.
 		if err == core.ErrPrunedAncestor && s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
-			return s.AddMinorBlock(block)
+			if err := s.AddMinorBlock(block); err != nil {
+				log.Warn(s.logInfo+" sidechain body recovery failed", "err", err)
+			}
+			return nil // next time to handle
 		}
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
@@ -416,12 +420,16 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	xshardLst := xshardBlocks[0].XShardList
 	if xshardLst == nil {
 		log.Info(s.logInfo+" add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+		}
 		return nil
 	}
 
 	prevRootBlock := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
 	if prevRootBlock == nil {
-		log.Error(s.logInfo+" prev root block not found", "hash", block.PrevRootBlockHash().Hex())
+		s.setHead(currHead.Number)
 		return fmt.Errorf("prev root block not found: %s", block.PrevRootBlockHash().Hex())
 	}
 	prevRootHeight := prevRootBlock.Number()

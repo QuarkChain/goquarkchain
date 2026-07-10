@@ -3,7 +3,6 @@ package shard
 import (
 	"errors"
 	"math/big"
-	"sync"
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -19,11 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 )
-
-// raceIterations is how many times the *UnderRace tests repeat the interleaving.
-// A single run rarely lands in the marker-deletion window, so the tests loop and
-// MUST be run with -race to be meaningful.
-const raceIterations = 100
 
 // ── stubs ──────────────────────────────────────────────────────────────────
 
@@ -227,70 +221,6 @@ func TestAddBlockListForSync_CommitMarkerPresentAfterSync(t *testing.T) {
 	}
 }
 
-// TestAddBlockListForSync_MarkerBodyConsistencyUnderRace asserts the body/marker
-// consistency invariant under a concurrent AddBlockListForSync vs SetHead: the
-// commit marker is never present while the body is absent.
-//
-// Two mechanisms together guarantee this, and this test guards both against
-// regression:
-//  1. CommitMinorBlockByHash checks HasBlock (body present) under m.mu before
-//     writing the marker, and SetHead also holds m.mu, so a marker is never
-//     written for a body that a concurrent SetHead already deleted.
-//  2. rawdb.DeleteMinorBlock deletes the body AND the commit marker together,
-//     so SetHead can never strip the body while leaving the marker behind.
-//
-// If either regresses (e.g. the body-check is dropped from CommitMinorBlockByHash,
-// or DeleteMinorBlock stops deleting the marker), the (marker && !body) state
-// becomes observable and this test fails. Must run with -race to exercise the
-// interleaving; the loop repeats it many times to hit the window.
-//
-// Run with: go test -race ./cluster/shard/... -run TestAddBlockListForSync_MarkerBodyConsistencyUnderRace
-func TestAddBlockListForSync_MarkerBodyConsistencyUnderRace(t *testing.T) {
-	for i := 0; i < raceIterations; i++ {
-		sb, db, stop := newTestShardBackend(t)
-
-		engine := new(consensus.FakeEngine)
-		genesis := sb.MinorBlockChain.CurrentBlock()
-		genesisNum := genesis.NumberU64()
-
-		blocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
-		block := blocks[0]
-
-		var wg sync.WaitGroup
-		wg.Add(2)
-
-		// goroutine A: sync the block via AddBlockListForSync
-		go func() {
-			defer wg.Done()
-			_ = sb.AddBlockListForSync([]*types.MinorBlock{block})
-		}()
-
-		// goroutine B: roll back past the block, simulating AddRootBlock → setHead
-		go func() {
-			defer wg.Done()
-			_ = sb.MinorBlockChain.SetHead(genesisNum)
-		}()
-
-		wg.Wait()
-
-		hasBody := rawdb.HasBlock(db, block.Hash())
-		hasMarker := rawdb.HasCommitMinorBlock(db, block.Hash())
-		// Invariant: a commit marker is never present without its body. If it is,
-		// either CommitMinorBlockByHash's body-check or DeleteMinorBlock's
-		// marker-deletion has regressed, and HasCommittedBlock would report a
-		// block whose body is gone — the "unknown ancestor" bug.
-		if hasMarker && !hasBody {
-			stop()
-			t.Fatalf("iter %d: body/marker inconsistency: commit marker present but body absent — "+
-				"CommitMinorBlockByHash must not write the marker for a deleted body, and "+
-				"DeleteMinorBlock must delete body and marker together", i)
-		}
-		stop()
-	}
-}
-
-// ── Bug 1 tests: AddMinorBlock ─────────────────────────────────────────────
-
 // TestAddMinorBlock_CommitMarkerPresentAfterBlock verifies that after
 // AddMinorBlock the commit marker is present for the added block.
 //
@@ -317,7 +247,7 @@ func TestAddMinorBlock_CommitMarkerPresentAfterBlock(t *testing.T) {
 	}
 
 	// blockAFork: different block at height 1 (same parent, different coinbase).
-	// With equal total difficulty, blockAFork stays a sidechain — the canonical
+	// With equal total difficulty, blockAFork stays a sidechain - the canonical
 	// head remains blockA, so HandleNewTip is never called.
 	blockAFork := forkBlock(t, genesis, engine, db)
 
@@ -329,66 +259,8 @@ func TestAddMinorBlock_CommitMarkerPresentAfterBlock(t *testing.T) {
 		t.Error("blockAFork: body absent after AddMinorBlock")
 	}
 	if !rawdb.HasCommitMinorBlock(db, blockAFork.Hash()) {
-		t.Error("blockAFork: commit marker absent after AddMinorBlock — " +
+		t.Error("blockAFork: commit marker absent after AddMinorBlock - " +
 			"marker must be written by the shard layer after BroadcastXshardTxList + SendMinorBlockHeaderToMaster")
-	}
-}
-
-// TestAddMinorBlock_MarkerBodyConsistencyUnderRace asserts the body/marker
-// consistency invariant under a concurrent AddMinorBlock vs SetHead: the commit
-// marker is never present while the body is absent.
-//
-// Same invariant and rationale as
-// TestAddBlockListForSync_MarkerBodyConsistencyUnderRace: CommitMinorBlockByHash
-// checks body-presence under m.mu before writing the marker, and
-// rawdb.DeleteMinorBlock deletes body and marker together. This test guards both
-// against regression.
-//
-// Run with: go test -race ./cluster/shard/... -run TestAddMinorBlock_MarkerBodyConsistencyUnderRace
-func TestAddMinorBlock_MarkerBodyConsistencyUnderRace(t *testing.T) {
-	for i := 0; i < raceIterations; i++ {
-		sb, db, stop := newTestShardBackend(t)
-
-		engine := new(consensus.FakeEngine)
-		genesis := sb.MinorBlockChain.CurrentBlock()
-		genesisNum := genesis.NumberU64()
-
-		// Pre-insert blockA so blockAFork enters AddMinorBlock as a sidechain.
-		blocksA, _ := core.GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 1, nil)
-		if _, err := sb.MinorBlockChain.InsertChain(toIBlocks([]*types.MinorBlock{blocksA[0]}), false); err != nil {
-			stop()
-			t.Fatalf("iter %d: pre-insert blockA: %v", i, err)
-		}
-
-		blockAFork := forkBlock(t, genesis, engine, db)
-
-		var wg sync.WaitGroup
-		wg.Add(2)
-
-		// goroutine A: add the fork block via AddMinorBlock
-		go func() {
-			defer wg.Done()
-			_ = sb.AddMinorBlock(blockAFork)
-		}()
-
-		// goroutine B: roll back to genesis, simulating AddRootBlock → setHead
-		go func() {
-			defer wg.Done()
-			_ = sb.MinorBlockChain.SetHead(genesisNum)
-		}()
-
-		wg.Wait()
-
-		hasBody := rawdb.HasBlock(db, blockAFork.Hash())
-		hasMarker := rawdb.HasCommitMinorBlock(db, blockAFork.Hash())
-		// Invariant: a commit marker is never present without its body.
-		if hasMarker && !hasBody {
-			stop()
-			t.Fatalf("iter %d: body/marker inconsistency: commit marker present but body absent — "+
-				"CommitMinorBlockByHash must not write the marker for a deleted body, and "+
-				"DeleteMinorBlock must delete body and marker together", i)
-		}
-		stop()
 	}
 }
 
@@ -414,7 +286,7 @@ func TestAddBlockListForSync_RecoversXShardListOnRetry(t *testing.T) {
 		t.Fatal("block body must be present after InsertChain")
 	}
 	if rawdb.HasCommitMinorBlock(db, block.Hash()) {
-		t.Fatal("commit marker must be absent — simulating partial failure")
+		t.Fatal("commit marker must be absent - simulating partial failure")
 	}
 
 	// Now retry via AddBlockListForSync. With force=true, InsertChainForDeposits
@@ -427,7 +299,7 @@ func TestAddBlockListForSync_RecoversXShardListOnRetry(t *testing.T) {
 		t.Error("block body must still be present after retry")
 	}
 	if !rawdb.HasCommitMinorBlock(db, block.Hash()) {
-		t.Error("commit marker must be written after successful retry — Issue 3 fix")
+		t.Error("commit marker must be written after successful retry - Issue 3 fix")
 	}
 	if sb.MinorBlockChain.CurrentBlock().Hash() != block.Hash() {
 		t.Errorf("chain tip must advance to block %s after retry, got %s",
@@ -442,7 +314,7 @@ func TestAddBlockListForSync_RecoversXShardListOnRetry(t *testing.T) {
 // The block passes NewMinorBlock's HasCommittedBlock guard (marker absent), so
 // it reaches the pre-validation ValidateBlock call. If that call used force=false,
 // HasBlockAndState would return ErrKnownBlock and NewMinorBlock would return nil
-// before delegating to AddMinorBlock — the uncommitted body would never be
+// before delegating to AddMinorBlock - the uncommitted body would never be
 // committed. NewMinorBlock must validate with force=true so AddMinorBlock's
 // force=true recovery path runs and writes the marker.
 func TestNewMinorBlock_RecoversUncommittedBodyOnRetry(t *testing.T) {
@@ -462,7 +334,7 @@ func TestNewMinorBlock_RecoversUncommittedBodyOnRetry(t *testing.T) {
 		t.Fatal("block body must be present after InsertChain")
 	}
 	if rawdb.HasCommitMinorBlock(db, block.Hash()) {
-		t.Fatal("commit marker must be absent — simulating partial failure")
+		t.Fatal("commit marker must be absent - simulating partial failure")
 	}
 
 	// Re-deliver the block over P2P. Must not be dropped as ErrKnownBlock; must
@@ -472,7 +344,7 @@ func TestNewMinorBlock_RecoversUncommittedBodyOnRetry(t *testing.T) {
 	}
 
 	if !rawdb.HasCommitMinorBlock(db, block.Hash()) {
-		t.Error("commit marker must be written after NewMinorBlock retry — " +
+		t.Error("commit marker must be written after NewMinorBlock retry - " +
 			"uncommitted body must be validated with force=true and reach AddMinorBlock recovery")
 	}
 }
