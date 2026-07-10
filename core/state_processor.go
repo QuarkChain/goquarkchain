@@ -320,7 +320,9 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	return nil, nil
 }
 
-func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
+// PayNativeTokenAsGas is a package-level variable (rather than a plain func) so that
+// tests can swap in a stub without machine-code patching, which is unsupported on macOS.
+var PayNativeTokenAsGas = func(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
 	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 	// not need to check gas(uint64)
 	if tokenID > qkcCmn.TOKENIDMAX || qkcCmn.BiggerThanUint128Max(gasPriceInNativeToken) {
@@ -335,7 +337,9 @@ func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenI
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
-func GetGasUtilityInfo(evmState vm.StateDB, config *params.ChainConfig, tokenID uint64,
+// GetGasUtilityInfo is a package-level variable (rather than a plain func) so that
+// tests can swap in a stub without machine-code patching, which is unsupported on macOS.
+var GetGasUtilityInfo = func(evmState vm.StateDB, config *params.ChainConfig, tokenID uint64,
 	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 
 	//# Call the `calculateGasPrice` function

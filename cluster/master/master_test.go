@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"bou.ke/monkey"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -268,7 +267,15 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 }
 
 func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType string, pubKey string) *QKCMasterBackend {
-	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []uint32, slaveID string) *SlaveConnection {
+	// Stub NewSlaveConn/createDB only for the duration of backend construction
+	// below, then restore. This replaces bou.ke/monkey machine-code patching,
+	// which macOS forbids (W^X).
+	origNewSlaveConn, origCreateDB := NewSlaveConn, createDB
+	defer func() {
+		NewSlaveConn = origNewSlaveConn
+		createDB = origCreateDB
+	}()
+	NewSlaveConn = func(target string, shardMaskLst []uint32, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
 			target:        target,
@@ -276,11 +283,10 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 			shardMaskList: shardMaskLst,
 			slaveID:       slaveID,
 		}
-	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+	}
+	createDB = func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
 		return service.NewQkcMemoryDB(isReadOnly), nil
-	})
-	defer monkey.UnpatchAll()
+	}
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()

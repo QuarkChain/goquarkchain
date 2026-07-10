@@ -3,7 +3,6 @@ module github.com/QuarkChain/goquarkchain
 go 1.14
 
 require (
-	bou.ke/monkey v1.0.1
 	github.com/QuarkChain/goqkcclient v0.0.0-20191220040322-0b8ed7eb66e8
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
 	github.com/allegro/bigcache v1.2.0 // indirect
@@ -16,7 +15,6 @@ require (
 	github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51 // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
-	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.4.3
