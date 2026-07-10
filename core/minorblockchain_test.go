@@ -1416,6 +1416,24 @@ func TestCommitMinorBlockByHashRequiresBody(t *testing.T) {
 	}
 }
 
+func TestHasBlockFalseWhenBodyAbsentButMarkerPresent(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	missingHash := common.HexToHash("0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+	rawdb.WriteCommitMinorBlock(db, missingHash)
+
+	if !rawdb.HasCommitMinorBlock(db, missingHash) {
+		t.Fatal("setup failed: commit marker should exist")
+	}
+	if blockchain.HasBlock(missingHash) {
+		t.Fatal("HasBlock should be false when only the commit marker exists")
+	}
+}
+
 func TestInsertChainWritesBodyWithoutCommitMarker(t *testing.T) {
 	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
 	if err != nil {
