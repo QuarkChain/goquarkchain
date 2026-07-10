@@ -553,9 +553,16 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 	return m.genesisBlock
 }
 
-// HasBlock checks if a block is fully present in the database or not.
+// HasCommittedBlock reports whether the block body is present and the shard
+// layer has written the commit marker after x-shard/master side effects.
+func (m *MinorBlockChain) HasCommittedBlock(hash common.Hash) bool {
+	return rawdb.HasBlock(m.db, hash) && rawdb.HasCommitMinorBlock(m.db, hash)
+}
+
+// HasBlock checks if a block body is present in the database. It does not imply
+// that the shard-level commit marker has been written.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return m.IsMinorBlockCommittedByHash(hash)
+	return rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -1006,7 +1013,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
-	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
@@ -1175,6 +1181,11 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 
+		if isCheckDB && m.HasBlockAndState(mBlock.Hash()) {
+			xShardList = append(xShardList, state.GetXShardList())
+			continue
+		}
+
 		if isCheckDB {
 			xShardList = append(xShardList, state.GetXShardList())
 			return 0, events, coalescedLogs, xShardList, nil
@@ -1276,7 +1287,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 			if err := m.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, nil, nil, err
 			}
-			m.CommitMinorBlockByHash(block.Hash())
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,

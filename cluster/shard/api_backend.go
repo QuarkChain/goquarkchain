@@ -24,6 +24,7 @@ import (
 var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
+	ErrBodyDeleted                   = errors.New("block body deleted before commit")
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -305,14 +306,20 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
-	if s.MinorBlockChain.HasBlock(block.Hash()) {
+	if s.MinorBlockChain.HasCommittedBlock(block.Hash()) {
 		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
 
-	if !s.MinorBlockChain.HasBlock(block.ParentHash()) {
-		log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
-		return
+	if !s.MinorBlockChain.HasCommittedBlock(block.ParentHash()) {
+		if err := s.commitUncommittedAncestorsIfPresent(block.ParentHash()); err != nil {
+			log.Warn(s.logInfo+" failed to commit uncommitted ancestors", "parent", block.ParentHash().Hex(), "err", err)
+			return nil
+		}
+		if !s.MinorBlockChain.HasCommittedBlock(block.ParentHash()) {
+			log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
+			return
+		}
 	}
 
 	//Sanity check on timestamp and block height
@@ -334,7 +341,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, true); err != nil {
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
 	}
@@ -355,17 +362,22 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
 
+	blockHash := block.Hash()
+	if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
-	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
+	if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 		return nil
 	}
-	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	log.Debug(s.logInfo, "currHead", currHead.Number)
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+	forceReplay := s.MinorBlockChain.HasBlockAndState(blockHash)
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, forceReplay)
 	if err != nil {
 		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
@@ -378,10 +390,14 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
-	s.mBPool.delBlockInPool(block.Hash())
+	s.mBPool.delBlockInPool(blockHash)
 
 	if xshardLst[0] == nil {
 		log.Info(s.logInfo+" add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+		}
 		return nil
 	}
 
@@ -408,7 +424,10 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
+	if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+		return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+	}
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -420,6 +439,30 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *ShardBackend) commitUncommittedAncestorsIfPresent(hash common.Hash) error {
+	blocks := make([]*types.MinorBlock, 0)
+	for !s.MinorBlockChain.HasCommittedBlock(hash) && s.MinorBlockChain.HasBlockAndState(hash) {
+		block := s.MinorBlockChain.GetMinorBlock(hash)
+		if block == nil {
+			return nil
+		}
+		blocks = append(blocks, block)
+		hash = block.ParentHash()
+	}
+	if len(blocks) == 0 || !s.MinorBlockChain.HasCommittedBlock(hash) {
+		return nil
+	}
+	for i := len(blocks) - 1; i >= 0; i-- {
+		if err := s.AddMinorBlock(blocks[i]); err != nil {
+			return err
+		}
+		if !s.MinorBlockChain.HasCommittedBlock(blocks[i].Hash()) {
+			return fmt.Errorf("failed to commit ancestor block: %s", blocks[i].Hash().Hex())
+		}
+	}
 	return nil
 }
 
@@ -451,8 +494,8 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 			continue
 		}
-		//TODO:support BLOCK_COMMITTING
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+		forceReplay := s.MinorBlockChain.HasBlockAndState(blockHash)
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, forceReplay)
 		if err != nil {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
@@ -478,8 +521,12 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return err
 	}
 	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header.Hash())
+		blockHash := header.Hash()
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+		}
+		s.mBPool.delBlockInPool(blockHash)
 	}
 	return nil
 }

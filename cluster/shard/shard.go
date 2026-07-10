@@ -32,7 +32,6 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING                  // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -207,18 +206,9 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
-	// If the block is committed, it means
-	// - All neighbor shards/slaves receives x-shard tx list
-	// - The block header is sent to master
-	// then return immediately
-	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
+	if s.MinorBlockChain.HasCommittedBlock(blockHash) {
 		return BLOCK_COMMITTED
 	}
-
-	//TODO support BLOCK_COMMITTING???
-
-	// Check if the block is being propagating to other slaves and the master
-	// Let's make sure all the shards and master got it before committing it
 	return BLOCK_UNCOMMITTED
 }
 

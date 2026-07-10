@@ -1400,5 +1400,47 @@ func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
 	}
 }
 
+func TestCommitMinorBlockByHashRequiresBody(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	missingHash := common.HexToHash("0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+	if blockchain.CommitMinorBlockByHash(missingHash) {
+		t.Fatal("commit marker should not be written when body is absent")
+	}
+	if rawdb.HasCommitMinorBlock(db, missingHash) {
+		t.Fatal("commit marker exists for missing body")
+	}
+}
+
+func TestInsertChainWritesBodyWithoutCommitMarker(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	blocks := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, canonicalSeed)
+	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), false); err != nil {
+		t.Fatal(err)
+	}
+	block := blocks[0]
+	if !blockchain.HasBlock(block.Hash()) {
+		t.Fatal("body should be present after InsertChain")
+	}
+	if blockchain.HasCommittedBlock(block.Hash()) {
+		t.Fatal("InsertChain should not write the commit marker")
+	}
+	if !blockchain.CommitMinorBlockByHash(block.Hash()) {
+		t.Fatal("commit marker should be written when body is present")
+	}
+	if !blockchain.HasCommittedBlock(block.Hash()) {
+		t.Fatal("block should be committed after CommitMinorBlockByHash")
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set

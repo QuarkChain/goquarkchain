@@ -344,6 +344,12 @@ func (bc *RootBlockChain) HasBlock(hash common.Hash) bool {
 	return rawdb.HasBlock(bc.db, hash)
 }
 
+// HasCommittedBlock satisfies the sync.blockchain interface. Root blocks do not
+// have a separate shard commit marker, so committed is equivalent to present.
+func (bc *RootBlockChain) HasCommittedBlock(hash common.Hash) bool {
+	return bc.HasBlock(hash)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *RootBlockChain) GetBlock(hash common.Hash) types.IBlock {
@@ -440,7 +446,7 @@ func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock) (err error)
 	return nil
 }
 
-//todo
+// todo
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status WriteStatus, err error) {
 	bc.wg.Add(1)
@@ -1059,7 +1065,7 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
-//For remote miner to getWork, no signature verified
+// For remote miner to getWork, no signature verified
 func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
