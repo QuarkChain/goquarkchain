@@ -194,6 +194,13 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	// Serialize root-block handling against AddMinorBlock / AddBlockListForSync on
+	// the same shard, so their broadcast + master-report side effects cannot
+	// interleave with root reorg rollback decisions. The core-layer race
+	// (currentBlock/canonical-index rewrite vs. insertChain) is handled inside
+	// MinorBlockChain.AddRootBlock via chainmu.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	switched = false
