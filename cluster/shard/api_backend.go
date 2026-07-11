@@ -471,6 +471,9 @@ func (s *ShardBackend) commitUncommittedAncestorsIfPresent(hash common.Hash) err
 	if len(blocks) == 0 || !s.MinorBlockChain.HasCommittedBlock(hash) {
 		return nil
 	}
+	// Replay missing commit markers from oldest ancestor to newest. Each
+	// AddMinorBlock re-checks the block status, so concurrent tip changes can
+	// safely leave any unfinished ancestors for the next retry.
 	for i := len(blocks) - 1; i >= 0; i-- {
 		if err := s.AddMinorBlock(blocks[i]); err != nil {
 			return err
@@ -531,6 +534,9 @@ func (s *ShardBackend) broadcastAndCommitXShardBlocks(xShardBlocks []core.XShard
 		return nil
 	}
 
+	// The commit marker means x-shard txs and minor headers were already sent, so
+	// send them before writing the marker. If the marker write fails, the block
+	// stays uncommitted and sync will resend it later.
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, s.branch); err != nil {
 		return err
 	}
