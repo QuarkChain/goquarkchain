@@ -1152,7 +1152,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 		rawdb.WriteMinorBlock(m.db, newGenesis)
 		m.genesisBlock = newGenesis
-		m.writeCanonicalBlockIndex(m.genesisBlock)
 		m.rootTip = rBlock
 		m.confirmedHeaderTip = confirmedTip
 		m.currentEvmState = newState
@@ -1416,6 +1415,9 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	m.currentEvmState = newState
 	rawdb.WriteHeadBlockHash(m.db, newBlock.Hash())
 	m.currentBlock.Store(newBlock)
+	if oldBlock.Hash() != newBlock.Hash() && oldBlock.NumberU64() > newBlock.NumberU64() {
+		return m.deleteCanonicalHashesBetween(oldBlock, newBlock)
+	}
 	return nil
 }
 

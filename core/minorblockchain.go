@@ -463,28 +463,43 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 }
 
 func (m *MinorBlockChain) setHeadToBlock(newHead *types.MinorBlock) error {
-	newState, err := m.setHeadToBlockWithoutHeadPublish(newHead)
+	oldHead := m.CurrentBlock()
+	newState, err := m.StateAt(newHead.Root())
 	if err != nil {
 		return err
 	}
+	setHeadBatch, err := m.prepareSetHeadBatch(oldHead, newHead)
+	if err != nil {
+		return err
+	}
+	// Publish the lower head before writing the cleanup batch: newHead's own body
+	// and state are never in the delete range, so the published head is always
+	// valid. All recoverable errors are handled above; only the batch write below
+	// can still fail, and that only on fatal disk IO, leaving stale bodies/indexes
+	// above newHead. The head stays valid; the stale entries are benign and get
+	// overwritten as the chain advances again.
 	m.currentEvmState = newState
 	rawdb.WriteHeadBlockHash(m.db, newHead.Hash())
 	m.currentBlock.Store(newHead)
-	return nil
+	return m.writeSetHeadBatch(setHeadBatch)
 }
 
 func (m *MinorBlockChain) setHeadToGenesisBlock(genesis *types.MinorBlock) error {
-	newState, err := m.setHeadToBlockWithoutHeadPublish(genesis)
+	oldHead := m.CurrentBlock()
+	newState, err := m.StateAt(genesis.Root())
+	if err != nil {
+		return err
+	}
+	setHeadBatch, err := m.prepareSetHeadBatch(oldHead, genesis)
 	if err != nil {
 		return err
 	}
 	rawdb.WriteMinorBlock(m.db, genesis)
 	m.genesisBlock = genesis
-	m.writeCanonicalBlockIndex(m.genesisBlock)
 	m.currentEvmState = newState
 	rawdb.WriteHeadBlockHash(m.db, genesis.Hash())
 	m.currentBlock.Store(genesis)
-	return nil
+	return m.writeSetHeadBatch(setHeadBatch)
 }
 
 // setHeadToBlockWithoutHeadPublish rewinds the body/canonical indexes to
@@ -495,11 +510,21 @@ func (m *MinorBlockChain) setHeadToBlockWithoutHeadPublish(newHead *types.MinorB
 	if err != nil {
 		return nil, err
 	}
+	// Root reorg callers publish currentBlock/currentEvmState separately, so
+	// cleanup stays before publication on this path.
+	batch, err := m.prepareSetHeadBatch(m.CurrentBlock(), newHead)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.writeSetHeadBatch(batch); err != nil {
+		return nil, err
+	}
+	return newState, nil
+}
 
-	// Rewind only after the target state is known to be usable, so an error
-	// cannot leave deleted bodies behind while the old head is still published.
+func (m *MinorBlockChain) prepareSetHeadBatch(oldHead *types.MinorBlock, newHead *types.MinorBlock) (ethdb.Batch, error) {
 	batch := m.db.NewBatch()
-	for block := m.CurrentBlock(); block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
+	for block := oldHead; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
 		// Drop the tx/receipt lookup entries too, otherwise deleting bodies
 		// leaves dangling indexes pointing at missing blocks.
 		if err := m.removeTxIndexFromBlock(batch, block); err != nil {
@@ -508,20 +533,28 @@ func (m *MinorBlockChain) setHeadToBlockWithoutHeadPublish(newHead *types.MinorB
 		rawdb.DeleteMinorBlock(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
 	}
-	if err := batch.Write(); err != nil {
-		return nil, err
-	}
-
-	m.writeCanonicalBlockIndex(newHead)
-	m.purgeChainCaches()
-
-	return newState, nil
+	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, newHead.Hash(), newHead.NumberU64())
+	return batch, nil
 }
 
-func (m *MinorBlockChain) deleteCanonicalHashesAbove(head uint64) error {
+func (m *MinorBlockChain) writeSetHeadBatch(batch ethdb.Batch) error {
+	if err := batch.Write(); err != nil {
+		return err
+	}
+
+	m.purgeChainCaches()
+
+	return nil
+}
+
+func (m *MinorBlockChain) deleteCanonicalHashesBetween(oldHead *types.MinorBlock, newHead *types.MinorBlock) error {
 	batch := m.db.NewBatch()
-	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.GetMinorBlock(block.ParentHash()) {
+	block := oldHead
+	for ; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
+	}
+	if block == nil || block.Hash() != newHead.Hash() {
+		return nil
 	}
 	if err := batch.Write(); err != nil {
 		return err
@@ -1503,12 +1536,9 @@ func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publish
 					return err
 				}
 			} else {
-				// Root-block reorg only rewrites the canonical view here. Keep the
-				// bodies above the target as sidechain data so a later root reorg can
-				// switch back without requiring a full re-sync.
-				if err := m.deleteCanonicalHashesAbove(newBlockNumber); err != nil {
-					return err
-				}
+				// Root-block same-chain rewind keeps canonical indexes intact until
+				// reWriteBlockIndexTo publishes the lower head. Bodies above the
+				// target are kept as sidechain data for a later root reorg switch-back.
 			}
 		}
 	}
