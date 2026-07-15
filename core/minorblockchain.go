@@ -502,26 +502,6 @@ func (m *MinorBlockChain) setHeadToGenesisBlock(genesis *types.MinorBlock) error
 	return m.writeSetHeadBatch(setHeadBatch)
 }
 
-// setHeadToBlockWithoutHeadPublish rewinds the body/canonical indexes to
-// newHead and returns its state without publishing currentBlock/currentEvmState.
-// The caller must hold mu, or be in single-threaded init.
-func (m *MinorBlockChain) setHeadToBlockWithoutHeadPublish(newHead *types.MinorBlock) (*state.StateDB, error) {
-	newState, err := m.StateAt(newHead.Root())
-	if err != nil {
-		return nil, err
-	}
-	// Root reorg callers publish currentBlock/currentEvmState separately, so
-	// cleanup stays before publication on this path.
-	batch, err := m.prepareSetHeadBatch(m.CurrentBlock(), newHead)
-	if err != nil {
-		return nil, err
-	}
-	if err := m.writeSetHeadBatch(batch); err != nil {
-		return nil, err
-	}
-	return newState, nil
-}
-
 func (m *MinorBlockChain) prepareSetHeadBatch(oldHead *types.MinorBlock, newHead *types.MinorBlock) (ethdb.Batch, error) {
 	batch := m.db.NewBatch()
 	for block := oldHead; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
@@ -544,22 +524,6 @@ func (m *MinorBlockChain) writeSetHeadBatch(batch ethdb.Batch) error {
 
 	m.purgeChainCaches()
 
-	return nil
-}
-
-func (m *MinorBlockChain) deleteCanonicalHashesBetween(oldHead *types.MinorBlock, newHead *types.MinorBlock) error {
-	batch := m.db.NewBatch()
-	block := oldHead
-	for ; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
-		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-	}
-	if block == nil || block.Hash() != newHead.Hash() {
-		return nil
-	}
-	if err := batch.Write(); err != nil {
-		return err
-	}
-	m.purgeChainCaches()
 	return nil
 }
 
@@ -623,13 +587,6 @@ func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
 	m.currentBlock.Store(block)
-}
-
-// writeCanonicalBlockIndex rewrites the number-to-hash index without publishing
-// a new head. Root-block reorg uses this to keep CurrentBlock unchanged until
-// rootTip, canonical indexes, and currentEvmState are ready together.
-func (m *MinorBlockChain) writeCanonicalBlockIndex(block *types.MinorBlock) {
-	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -1430,14 +1387,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
-	return m.reorgInternal(oldBlock, newBlock, true)
-}
-
-func (m *MinorBlockChain) reorgWithoutHeadPublish(oldBlock, newBlock types.IBlock) error {
-	return m.reorgInternal(oldBlock, newBlock, false)
-}
-
-func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publishHead bool) error {
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1531,14 +1480,8 @@ func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publish
 		// Only rewind when old canonical blocks are actually being dropped. A
 		// descendant-with-gap has oldChain empty and relies on updateTip's state.
 		if len(oldChain) > 0 {
-			if publishHead {
-				if err := m.setHead(newBlockNumber); err != nil {
-					return err
-				}
-			} else {
-				// Root-block same-chain rewind keeps canonical indexes intact until
-				// reWriteBlockIndexTo publishes the lower head. Bodies above the
-				// target are kept as sidechain data for a later root reorg switch-back.
+			if err := m.setHead(newBlockNumber); err != nil {
+				return err
 			}
 		}
 	}
@@ -1559,11 +1502,7 @@ func (m *MinorBlockChain) reorgInternal(oldBlock, newBlock types.IBlock, publish
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
-		if publishHead {
-			m.insert(newChain[i].(*types.MinorBlock))
-		} else {
-			m.writeCanonicalBlockIndex(newChain[i].(*types.MinorBlock))
-		}
+		m.insert(newChain[i].(*types.MinorBlock))
 		// write lookup entries for hash based transaction/receipt searches
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err
