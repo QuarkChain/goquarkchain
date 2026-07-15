@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"testing"
-	
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -268,5 +268,5 @@ func TestTxSize(t *testing.T) {
 	}
 
 	check("EvmTransaction min len", len(txBytes), 120)
-	check("EvmTransaction max len", len(txBytes2), 210)
+	check("EvmTransaction max len", len(txBytes2), 209)
 }

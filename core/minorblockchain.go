@@ -321,6 +321,36 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	return m.setHead(head)
 }
 
+func (m *MinorBlockChain) prepareSetHeadBatch(oldHead *types.MinorBlock, newHead *types.MinorBlock) (ethdb.Batch, error) {
+	batch := m.db.NewBatch()
+	for block := oldHead; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
+		// Drop the tx/receipt lookup entries too, otherwise deleting bodies
+		// leaves dangling indexes pointing at missing blocks.
+		if err := m.removeTxIndexFromBlock(batch, block); err != nil {
+			return nil, err
+		}
+		rawdb.DeleteMinorBlock(batch, block.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
+	}
+	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, newHead.Hash(), newHead.NumberU64())
+	return batch, nil
+}
+
+func (m *MinorBlockChain) writeSetHeadBatch(batch ethdb.Batch) error {
+	if err := batch.Write(); err != nil {
+		return err
+	}
+
+	m.receiptsCache.Purge()
+	m.blockCache.Purge()
+	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
+
+	return nil
+}
+
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
 	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
@@ -485,55 +515,12 @@ func (m *MinorBlockChain) setHeadToBlock(newHead *types.MinorBlock) error {
 }
 
 func (m *MinorBlockChain) setHeadToGenesisBlock(genesis *types.MinorBlock) error {
-	oldHead := m.CurrentBlock()
-	newState, err := m.StateAt(genesis.Root())
-	if err != nil {
-		return err
-	}
-	setHeadBatch, err := m.prepareSetHeadBatch(oldHead, genesis)
-	if err != nil {
-		return err
-	}
 	rawdb.WriteMinorBlock(m.db, genesis)
-	m.genesisBlock = genesis
-	m.currentEvmState = newState
-	rawdb.WriteHeadBlockHash(m.db, genesis.Hash())
-	m.currentBlock.Store(genesis)
-	return m.writeSetHeadBatch(setHeadBatch)
-}
-
-func (m *MinorBlockChain) prepareSetHeadBatch(oldHead *types.MinorBlock, newHead *types.MinorBlock) (ethdb.Batch, error) {
-	batch := m.db.NewBatch()
-	for block := oldHead; block != nil && block.NumberU64() > newHead.NumberU64(); block = m.GetMinorBlock(block.ParentHash()) {
-		// Drop the tx/receipt lookup entries too, otherwise deleting bodies
-		// leaves dangling indexes pointing at missing blocks.
-		if err := m.removeTxIndexFromBlock(batch, block); err != nil {
-			return nil, err
-		}
-		rawdb.DeleteMinorBlock(batch, block.Hash())
-		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-	}
-	rawdb.WriteCanonicalHash(batch, rawdb.ChainTypeMinor, newHead.Hash(), newHead.NumberU64())
-	return batch, nil
-}
-
-func (m *MinorBlockChain) writeSetHeadBatch(batch ethdb.Batch) error {
-	if err := batch.Write(); err != nil {
+	if err := m.setHeadToBlock(genesis); err != nil {
 		return err
 	}
-
-	m.purgeChainCaches()
-
+	m.genesisBlock = genesis
 	return nil
-}
-
-func (m *MinorBlockChain) purgeChainCaches() {
-	m.receiptsCache.Purge()
-	m.blockCache.Purge()
-	m.futureBlocks.Purge()
-	m.crossShardTxListCache.Purge()
-	m.rootBlockCache.Purge()
-	m.lastConfirmCache.Purge()
 }
 
 // Export writes the active chain to the given writer.
