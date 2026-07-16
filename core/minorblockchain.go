@@ -477,16 +477,20 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 // setHeadToGenesisBlock requires chainmu and mu, except during single-threaded
 // construction before the chain is published.
 func (m *MinorBlockChain) setHeadToGenesisBlock(genesis *types.MinorBlock) error {
+	newState, err := m.StateAt(genesis.Root())
+	if err != nil {
+		return err
+	}
+	rawdb.WriteMinorBlock(m.db, genesis)
+
 	// Dump the entire block chain and purge the caches
 	if err := m.setHead(0); err != nil {
 		return err
 	}
 
-	rawdb.WriteMinorBlock(m.db, genesis)
-
 	m.genesisBlock = genesis
-	m.insert(m.genesisBlock)
-	m.currentBlock.Store(m.genesisBlock)
+	m.insert(genesis)
+	m.currentEvmState = newState
 
 	return nil
 }

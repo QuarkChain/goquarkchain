@@ -1128,20 +1128,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			if newGenesis == nil {
 				panic(errors.New("get genesis block is nil"))
 			}
-			newState, err := m.StateAt(newGenesis.Root())
-			if err != nil {
-				return false, err
-			}
 			log.Warn(m.logInfo+" ready to reset genesis", "number", newGenesis.Number(), "hash", newGenesis.Hash().String())
 			m.mu.Lock()
-			m.genesisBlock = newGenesis
-			if err := m.setHead(0); err != nil {
+			if err := m.setHeadToGenesisBlock(newGenesis); err != nil {
 				m.mu.Unlock()
 				return false, err
 			}
-			rawdb.WriteMinorBlock(m.db, newGenesis)
-			m.insert(newGenesis)
-			m.currentEvmState = newState
 			m.mu.Unlock()
 			return true, nil
 		}
