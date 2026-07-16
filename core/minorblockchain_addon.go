@@ -1076,12 +1076,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	m.chainmu.Lock()
 	defer m.chainmu.Unlock()
 
-	// No change to root tip. rootTip is guarded by mu (written under mu here and
-	// read by CreateBlockToMine / InitGenesisState), so read it under mu rather
-	// than relying on chainmu alone.
-	m.mu.Lock()
-	curRootTip := m.rootTip
-	m.mu.Unlock()
+	curRootTip := m.GetRootTip()
 	if rBlock.TotalDifficulty().Cmp(curRootTip.TotalDifficulty()) <= 0 {
 		if !m.isSameRootChain(curRootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 			return false, ErrNotSameRootChain
