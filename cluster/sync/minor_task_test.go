@@ -111,6 +111,9 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if _, err := mbc.InsertChain(blocks, false); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
+	for _, block := range blocks {
+		mbc.CommitMinorBlockByHash(block.Hash())
+	}
 
 	return &mockblockchain{mbc: mbc}, db
 }

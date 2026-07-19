@@ -54,22 +54,12 @@ func NewRootChainTask(
 		// change the batch size to 3 for tps test
 		batchSize: 3, // RootBlockBatchSize,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
-
-			if bc.HasBlock(rTask.header.Hash()) {
-				return nil, nil
-			}
-
 			ancestor, err := rTask.findAncestor(bc)
 			if err != nil {
 				rTask.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
-
-			if !bc.HasBlock(ancestor.Hash()) {
-				return nil, errors.New("Bad ancestor ")
-			}
-
-			if rTask.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) < 0 {
+			if !qcom.IsNil(ancestor) && rTask.header.GetTotalDifficulty().Cmp(ancestor.GetTotalDifficulty()) < 0 {
 				return nil, errors.New("ancestor's total difficulty is bigger than current")
 			}
 			return ancestor, nil
@@ -177,6 +167,10 @@ func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
 }
 
 func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, error) {
+	if bc.HasCommittedBlock(r.header.Hash()) {
+		return nil, nil
+	}
+
 	rtip := bc.CurrentHeader().(*types.RootBlockHeader)
 	if r.header.ParentHash == rtip.Hash() {
 		return rtip, nil
@@ -213,7 +207,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 			}
 			preHeader = rh
 
-			if !bc.HasBlock(rh.Hash()) {
+			if !bc.HasCommittedBlock(rh.Hash()) {
 				end = rh.Number - 1
 				continue
 			}
@@ -230,6 +224,10 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 			break
 		}
 	}
+	if bestAncestor == nil {
+		return nil, errors.New("No common ancestor found for root chain")
+	}
+
 	return bestAncestor, nil
 }
 

@@ -1400,5 +1400,90 @@ func TestVerifyHeaderTypedNilParentReturnsErrUnknownAncestor(t *testing.T) {
 	}
 }
 
+func TestCommitMinorBlockByHashRequiresBody(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	missingHash := common.HexToHash("0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+	if blockchain.CommitMinorBlockByHash(missingHash) {
+		t.Fatal("commit marker should not be written when body is absent")
+	}
+	if rawdb.HasCommitMinorBlock(db, missingHash) {
+		t.Fatal("commit marker exists for missing body")
+	}
+}
+
+func TestHasBlockFalseWhenBodyAbsentButMarkerPresent(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	missingHash := common.HexToHash("0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+	rawdb.WriteCommitMinorBlock(db, missingHash)
+
+	if !rawdb.HasCommitMinorBlock(db, missingHash) {
+		t.Fatal("setup failed: commit marker should exist")
+	}
+	if blockchain.HasBlock(missingHash) {
+		t.Fatal("HasBlock should be false when only the commit marker exists")
+	}
+}
+
+func TestInsertChainWritesBodyWithoutCommitMarker(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	blocks := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, canonicalSeed)
+	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), false); err != nil {
+		t.Fatal(err)
+	}
+	block := blocks[0]
+	if !blockchain.HasBlock(block.Hash()) {
+		t.Fatal("body should be present after InsertChain")
+	}
+	if blockchain.HasCommittedBlock(block.Hash()) {
+		t.Fatal("InsertChain should not write the commit marker")
+	}
+	if !blockchain.CommitMinorBlockByHash(block.Hash()) {
+		t.Fatal("commit marker should be written when body is present")
+	}
+	if !blockchain.HasCommittedBlock(block.Hash()) {
+		t.Fatal("block should be committed after CommitMinorBlockByHash")
+	}
+}
+
+func TestProcFutureBlocksUsesShardCallback(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, canonicalSeed)[0]
+	called := 0
+	blockchain.SetBroadcastMinorBlockFunc(func(got *types.MinorBlock) error {
+		called++
+		if got.Hash() != block.Hash() {
+			t.Fatalf("callback block mismatch: got %s want %s", got.Hash(), block.Hash())
+		}
+		return nil
+	})
+	blockchain.futureBlocks.Add(block.Hash(), block)
+
+	blockchain.procFutureBlocks()
+
+	if called != 1 {
+		t.Fatalf("future block callback called %d times, want 1", called)
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set

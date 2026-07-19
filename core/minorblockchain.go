@@ -149,6 +149,7 @@ type MinorBlockChain struct {
 	heightToMBlockHashCount  map[uint64]int
 	currentEvmState          *state.StateDB
 	logInfo                  string
+	addMinorBlockMu          sync.RWMutex
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
@@ -254,7 +255,15 @@ func (m *MinorBlockChain) EthChainID() uint32 {
 }
 
 func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {
+	m.addMinorBlockMu.Lock()
+	defer m.addMinorBlockMu.Unlock()
 	m.addMinorBlockAndBroad = f
+}
+
+func (m *MinorBlockChain) getBroadcastMinorBlockFunc() func(block *types.MinorBlock) error {
+	m.addMinorBlockMu.RLock()
+	defer m.addMinorBlockMu.RUnlock()
+	return m.addMinorBlockAndBroad
 }
 
 func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
@@ -262,7 +271,11 @@ func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
 	if !ok {
 		return errors.New("block is not minorBlock")
 	}
-	return m.addMinorBlockAndBroad(minorBlock)
+	handler := m.getBroadcastMinorBlockFunc()
+	if handler == nil {
+		return errors.New("minor block handler is not configured")
+	}
+	return handler(minorBlock)
 }
 
 func (m *MinorBlockChain) getProcInterrupt() bool {
@@ -553,9 +566,16 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 	return m.genesisBlock
 }
 
-// HasBlock checks if a block is fully present in the database or not.
+// HasCommittedBlock reports whether the block body is present and the shard
+// layer has written the commit marker after x-shard/master side effects.
+func (m *MinorBlockChain) HasCommittedBlock(hash common.Hash) bool {
+	return rawdb.HasBlock(m.db, hash) && rawdb.HasCommitMinorBlock(m.db, hash)
+}
+
+// HasBlock checks if a block body is present in the database. It does not imply
+// that the shard-level commit marker has been written.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	return m.IsMinorBlockCommittedByHash(hash)
+	return rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -734,10 +754,18 @@ func (m *MinorBlockChain) procFutureBlocks() {
 		}
 	}
 	if len(blocks) > 0 {
+		handler := m.getBroadcastMinorBlockFunc()
+		if handler == nil {
+			log.Warn(m.logInfo + " future block handler is not configured")
+			return
+		}
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].NumberU64() < blocks[j].NumberU64() })
-		// Insert one by one as chain insertion needs contiguous ancestry between blocks
+		// Process one by one through the shard callback so broadcast/report/commit
+		// side effects run for blocks that mature out of the future-block queue.
 		for i := range blocks {
-			m.InsertChain(blocks[i:i+1], false)
+			if err := handler(blocks[i].(*types.MinorBlock)); err != nil {
+				log.Warn(m.logInfo+" failed to process future block", "number", blocks[i].NumberU64(), "hash", blocks[i].Hash(), "err", err)
+			}
 		}
 	}
 }
@@ -1006,7 +1034,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
-	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
@@ -1175,6 +1202,11 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 
+		if isCheckDB && m.HasBlockAndState(mBlock.Hash()) {
+			xShardList = append(xShardList, state.GetXShardList())
+			continue
+		}
+
 		if isCheckDB {
 			xShardList = append(xShardList, state.GetXShardList())
 			return 0, events, coalescedLogs, xShardList, nil
@@ -1276,7 +1308,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 			if err := m.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, nil, nil, err
 			}
-			m.CommitMinorBlockByHash(block.Hash())
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,

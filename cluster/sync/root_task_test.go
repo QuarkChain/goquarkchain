@@ -141,12 +141,22 @@ func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
 
 }
 
+func (bc *mockblockchain) HasCommittedBlock(hash common.Hash) bool {
+	if bc.rbc != nil {
+		return bc.HasBlock(hash)
+	}
+	return bc.mbc.HasCommittedBlock(hash)
+}
+
 func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 	if bc.rbc != nil {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
 	_, err := bc.mbc.InsertChain([]types.IBlock{block}, false)
+	if err == nil {
+		bc.mbc.CommitMinorBlockByHash(block.Hash())
+	}
 	return err
 }
 

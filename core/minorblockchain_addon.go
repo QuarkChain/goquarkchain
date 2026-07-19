@@ -350,7 +350,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
-	m.CommitMinorBlockByHash(gBlock.Hash())
+	rawdb.WriteCommitMinorBlock(m.db, gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}
@@ -1882,8 +1882,17 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 	return rawdb.HasCommitMinorBlock(m.db, h)
 }
 
-func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
+// CommitMinorBlockByHash writes the commit marker only if the block body is
+// still present. A false return means the block remains uncommitted and should
+// be retried by sync.
+func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !rawdb.HasBlock(m.db, h) {
+		return false
+	}
 	rawdb.WriteCommitMinorBlock(m.db, h)
+	return true
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
