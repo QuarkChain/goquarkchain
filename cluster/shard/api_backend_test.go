@@ -171,6 +171,9 @@ func TestAddBlockListForSyncSkipsCommittedBlockAndCommitsRest(t *testing.T) {
 	if sb.MinorBlockChain.CurrentBlock().Hash() != blockB.Hash() {
 		t.Fatalf("chain tip should be blockB, got %s", sb.MinorBlockChain.CurrentBlock().Hash().Hex())
 	}
+	if err := sb.AddBlockListForSync([]*types.MinorBlock{blockB, blockA}); err == nil {
+		t.Fatal("out-of-order sync list should be rejected")
+	}
 }
 
 func TestAddMinorBlockWritesCommitMarker(t *testing.T) {
@@ -192,6 +195,11 @@ func TestAddMinorBlockWritesCommitMarker(t *testing.T) {
 	}
 	if !rawdb.HasCommitMinorBlock(db, blockAFork.Hash()) {
 		t.Fatal("fork block commit marker should be written by AddMinorBlock")
+	}
+
+	child := makeTestMinorBlocks(t, db, blockA, 1)[0]
+	if err := sb.AddMinorBlock(child); !errors.Is(err, errParentBlockNotCommitted) {
+		t.Fatalf("AddMinorBlock error = %v, want %v", err, errParentBlockNotCommitted)
 	}
 }
 
@@ -215,6 +223,18 @@ func TestAddBlockListForSyncRecoversUncommittedBody(t *testing.T) {
 	}
 	if !sb.MinorBlockChain.HasCommittedBlock(block.Hash()) {
 		t.Fatal("retry should commit existing body")
+	}
+
+	blocks := makeTestMinorBlocks(t, db, block, 2)
+	parent, child := blocks[0], blocks[1]
+	if _, err := sb.MinorBlockChain.InsertChain([]types.IBlock{parent}, false); err != nil {
+		t.Fatalf("pre-insert uncommitted parent: %v", err)
+	}
+	if err := sb.AddBlockListForSync([]*types.MinorBlock{child}); !errors.Is(err, errParentBlockNotCommitted) {
+		t.Fatalf("AddBlockListForSync error = %v, want %v", err, errParentBlockNotCommitted)
+	}
+	if sb.MinorBlockChain.HasCommittedBlock(child.Hash()) {
+		t.Fatal("rejected child should not be committed")
 	}
 }
 

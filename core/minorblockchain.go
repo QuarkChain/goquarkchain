@@ -149,6 +149,7 @@ type MinorBlockChain struct {
 	heightToMBlockHashCount  map[uint64]int
 	currentEvmState          *state.StateDB
 	logInfo                  string
+	addMinorBlockMu          sync.RWMutex
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
@@ -254,7 +255,15 @@ func (m *MinorBlockChain) EthChainID() uint32 {
 }
 
 func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {
+	m.addMinorBlockMu.Lock()
+	defer m.addMinorBlockMu.Unlock()
 	m.addMinorBlockAndBroad = f
+}
+
+func (m *MinorBlockChain) getBroadcastMinorBlockFunc() func(block *types.MinorBlock) error {
+	m.addMinorBlockMu.RLock()
+	defer m.addMinorBlockMu.RUnlock()
+	return m.addMinorBlockAndBroad
 }
 
 func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
@@ -262,7 +271,11 @@ func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
 	if !ok {
 		return errors.New("block is not minorBlock")
 	}
-	return m.addMinorBlockAndBroad(minorBlock)
+	handler := m.getBroadcastMinorBlockFunc()
+	if handler == nil {
+		return errors.New("minor block handler is not configured")
+	}
+	return handler(minorBlock)
 }
 
 func (m *MinorBlockChain) getProcInterrupt() bool {
@@ -741,10 +754,18 @@ func (m *MinorBlockChain) procFutureBlocks() {
 		}
 	}
 	if len(blocks) > 0 {
+		handler := m.getBroadcastMinorBlockFunc()
+		if handler == nil {
+			log.Warn(m.logInfo + " future block handler is not configured")
+			return
+		}
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].NumberU64() < blocks[j].NumberU64() })
-		// Insert one by one as chain insertion needs contiguous ancestry between blocks
+		// Process one by one through the shard callback so broadcast/report/commit
+		// side effects run for blocks that mature out of the future-block queue.
 		for i := range blocks {
-			m.InsertChain(blocks[i:i+1], false)
+			if err := handler(blocks[i].(*types.MinorBlock)); err != nil {
+				log.Warn(m.logInfo+" failed to process future block", "number", blocks[i].NumberU64(), "hash", blocks[i].Hash(), "err", err)
+			}
 		}
 	}
 }

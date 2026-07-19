@@ -1460,5 +1460,30 @@ func TestInsertChainWritesBodyWithoutCommitMarker(t *testing.T) {
 	}
 }
 
+func TestProcFutureBlocksUsesShardCallback(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block := makeBlockChain(blockchain.CurrentBlock(), 1, engine, db, canonicalSeed)[0]
+	called := 0
+	blockchain.SetBroadcastMinorBlockFunc(func(got *types.MinorBlock) error {
+		called++
+		if got.Hash() != block.Hash() {
+			t.Fatalf("callback block mismatch: got %s want %s", got.Hash(), block.Hash())
+		}
+		return nil
+	})
+	blockchain.futureBlocks.Add(block.Hash(), block)
+
+	blockchain.procFutureBlocks()
+
+	if called != 1 {
+		t.Fatalf("future block callback called %d times, want 1", called)
+	}
+}
+
 //TODO
 //Bench test: qkc genesis not support code set

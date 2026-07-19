@@ -25,6 +25,7 @@ var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
 	ErrBodyDeleted                   = errors.New("block body deleted before commit")
+	errParentBlockNotCommitted       = errors.New("parent block is not committed")
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -374,6 +375,9 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 		return nil
 	}
+	if !s.MinorBlockChain.HasCommittedBlock(block.ParentHash()) {
+		return fmt.Errorf("%w: %s", errParentBlockNotCommitted, block.ParentHash().Hex())
+	}
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	log.Debug(s.logInfo, "currHead", currHead.Number)
 	forceReplay := s.MinorBlockChain.HasBlockAndState(blockHash)
@@ -470,8 +474,7 @@ func (s *ShardBackend) commitUncommittedAncestorsIfPresent(hash common.Hash) err
 //
 // Returns true if blocks are successfully added. False on any error.
 // This function only adds blocks to local and propagate xshard list to other shards.
-// It does NOT notify master because the master should already have the minor header list,
-// and will add them once this function returns successfully.
+// It reports headers to master once as a batch.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -481,6 +484,21 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	if len(blockLst) == 0 {
 		return nil
 	}
+	for i, block := range blockLst {
+		if block.Branch().Value != s.branch.Value {
+			return fmt.Errorf("sync block list contains branch %d at index %d, want %d", block.Branch().Value, i, s.branch.Value)
+		}
+		if i > 0 && (block.NumberU64() != blockLst[i-1].NumberU64()+1 || block.ParentHash() != blockLst[i-1].Hash()) {
+			return fmt.Errorf("sync block list is not parent-first contiguous at index %d", i)
+		}
+	}
+	// The slave removes committed blocks before calling this method. Since
+	// commits are parent-first, that can only remove a committed prefix. After
+	// verifying the remaining list is contiguous, its first parent therefore
+	// establishes the commit boundary for the entire batch.
+	if !s.MinorBlockChain.HasCommittedBlock(blockLst[0].ParentHash()) {
+		return fmt.Errorf("%w: %s", errParentBlockNotCommitted, blockLst[0].ParentHash().Hex())
+	}
 
 	var (
 		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
@@ -488,9 +506,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	)
 	for _, block := range blockLst {
 		blockHash := block.Hash()
-		if block.Branch().Value != s.branch.Value {
-			continue
-		}
 		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 			continue
 		}
