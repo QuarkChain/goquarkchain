@@ -3,6 +3,7 @@ package shard
 import (
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -19,25 +20,57 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-type stubConnManager struct{}
+type stubConnManager struct {
+	mu sync.Mutex
+
+	broadcastXshardCount      int
+	sendMinorHeaderCount      int
+	sendMinorHeaderListCount  int
+	batchBroadcastXshardCount int
+	broadcastNewTipCount      int
+	broadcastMinorBlockCount  int
+
+	lastBatchXshardLists map[common.Hash]*XshardListTuple
+	lastHeaderList       []*types.MinorBlockHeader
+}
 
 func (s *stubConnManager) BroadcastXshardTxList(_ *types.MinorBlock, _ []*types.CrossShardTransactionDeposit, _ uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.broadcastXshardCount++
 	return nil
 }
 
 func (s *stubConnManager) SendMinorBlockHeaderToMaster(_ *rpc.AddMinorBlockHeaderRequest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sendMinorHeaderCount++
 	return nil
 }
 
-func (s *stubConnManager) SendMinorBlockHeaderListToMaster(_ *rpc.AddMinorBlockHeaderListRequest) error {
+func (s *stubConnManager) SendMinorBlockHeaderListToMaster(req *rpc.AddMinorBlockHeaderListRequest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sendMinorHeaderListCount++
+	s.lastHeaderList = append([]*types.MinorBlockHeader(nil), req.MinorBlockHeaderList...)
 	return nil
 }
 
-func (s *stubConnManager) BatchBroadcastXshardTxList(_ map[common.Hash]*XshardListTuple, _ account.Branch) error {
+func (s *stubConnManager) BatchBroadcastXshardTxList(lists map[common.Hash]*XshardListTuple, _ account.Branch) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.batchBroadcastXshardCount++
+	s.lastBatchXshardLists = make(map[common.Hash]*XshardListTuple, len(lists))
+	for hash, list := range lists {
+		s.lastBatchXshardLists[hash] = list
+	}
 	return nil
 }
 
 func (s *stubConnManager) BroadcastNewTip(_ []*types.MinorBlockHeader, _ *types.RootBlockHeader, _ uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.broadcastNewTipCount++
 	return nil
 }
 
@@ -46,6 +79,9 @@ func (s *stubConnManager) BroadcastTransactions(_ string, _ uint32, _ []*types.T
 }
 
 func (s *stubConnManager) BroadcastMinorBlock(_ string, _ *types.MinorBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.broadcastMinorBlockCount++
 	return nil
 }
 
@@ -130,6 +166,25 @@ func makeTestMinorBlocks(t *testing.T, db ethdb.Database, parent *types.MinorBlo
 	return blocks
 }
 
+func makeDetachedTestMinorBlocks(t *testing.T, parent *types.MinorBlock, n int) []*types.MinorBlock {
+	t.Helper()
+
+	clusterCfg := config.NewClusterConfig()
+	clusterCfg.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterCfg.Quarkchain.SkipRootDifficultyCheck = true
+	clusterCfg.Quarkchain.SkipRootCoinbaseCheck = true
+	fullShardID := clusterCfg.Quarkchain.Chains[0].ShardSize | 0
+
+	db := ethdb.NewMemDatabase()
+	gspec := core.NewGenesis(clusterCfg.Quarkchain)
+	rootBlock := gspec.CreateRootBlock()
+	genesisBlock := gspec.MustCommitMinorBlock(db, rootBlock, fullShardID)
+	if genesisBlock.Hash() != parent.Hash() {
+		t.Fatalf("detached genesis hash mismatch: got %s want %s", genesisBlock.Hash().Hex(), parent.Hash().Hex())
+	}
+	return makeTestMinorBlocks(t, db, genesisBlock, n)
+}
+
 func makeTestForkBlock(t *testing.T, db ethdb.Database, parent *types.MinorBlock) *types.MinorBlock {
 	t.Helper()
 	blocks, _ := core.GenerateMinorBlockChain(
@@ -144,6 +199,10 @@ func makeTestForkBlock(t *testing.T, db ethdb.Database, parent *types.MinorBlock
 		},
 	)
 	return blocks[0]
+}
+
+func shardStubConn(sb *ShardBackend) *stubConnManager {
+	return sb.conn.(*stubConnManager)
 }
 
 func TestAddBlockListForSyncSkipsCommittedBlockAndCommitsRest(t *testing.T) {
@@ -173,6 +232,36 @@ func TestAddBlockListForSyncSkipsCommittedBlockAndCommitsRest(t *testing.T) {
 	}
 	if err := sb.AddBlockListForSync([]*types.MinorBlock{blockB, blockA}); err == nil {
 		t.Fatal("out-of-order sync list should be rejected")
+	}
+}
+
+func TestAddBlockListForSyncSplitsGapAndSkipsDuplicateInBatch(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	genesis := sb.MinorBlockChain.CurrentBlock()
+	blockA := makeTestMinorBlocks(t, db, genesis, 1)[0]
+	blockAFork := makeTestForkBlock(t, db, genesis)
+
+	if err := sb.AddBlockListForSync([]*types.MinorBlock{blockA, blockA, blockAFork}); err != nil {
+		t.Fatalf("AddBlockListForSync: %v", err)
+	}
+	if !sb.MinorBlockChain.HasCommittedBlock(blockA.Hash()) {
+		t.Fatal("first segment block should be committed")
+	}
+	if !sb.MinorBlockChain.HasCommittedBlock(blockAFork.Hash()) {
+		t.Fatal("fork segment block should be committed")
+	}
+
+	conn := shardStubConn(sb)
+	if conn.batchBroadcastXshardCount != 2 {
+		t.Fatalf("expected duplicate-skipped fork batch to split into two x-shard broadcasts, got %d", conn.batchBroadcastXshardCount)
+	}
+	if conn.sendMinorHeaderListCount != 2 {
+		t.Fatalf("expected duplicate-skipped fork batch to split into two header submissions, got %d", conn.sendMinorHeaderListCount)
+	}
+	if conn.sendMinorHeaderCount != 0 {
+		t.Fatalf("sync batch should use header-list submission, got %d single-header submissions", conn.sendMinorHeaderCount)
 	}
 }
 
@@ -255,5 +344,73 @@ func TestNewMinorBlockRecoversUncommittedBody(t *testing.T) {
 	}
 	if !sb.MinorBlockChain.HasCommittedBlock(block.Hash()) {
 		t.Fatal("NewMinorBlock should route existing uncommitted body through AddMinorBlock")
+	}
+}
+
+func TestNewMinorBlockAcceptsBodyOnlyParentAsSidechainAnchor(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	blocks := makeDetachedTestMinorBlocks(t, sb.MinorBlockChain.CurrentBlock(), 2)
+	parent, child := blocks[0], blocks[1]
+	if err := sb.MinorBlockChain.WriteBlockWithoutState(parent); err != nil {
+		t.Fatalf("write body-only parent: %v", err)
+	}
+	if !sb.MinorBlockChain.HasBodyWithoutState(parent.Hash()) {
+		t.Fatal("parent should be body-only before receiving child")
+	}
+
+	if err := sb.NewMinorBlock("peer-1", child); err != nil {
+		t.Fatalf("NewMinorBlock with body-only parent: %v", err)
+	}
+	if !rawdb.HasBlock(db, child.Hash()) {
+		t.Fatal("child body should be written as sidechain data")
+	}
+	if !sb.MinorBlockChain.HasCommittedBlock(child.Hash()) {
+		t.Fatal("child should be committed after body-only sidechain replay")
+	}
+	if !sb.MinorBlockChain.HasCommittedBlock(parent.Hash()) {
+		t.Fatal("parent should also be committed after sidechain replay")
+	}
+}
+
+func TestCommitSidechainReplayCommitsEveryReturnedBlock(t *testing.T) {
+	sb, db, stop := newTestShardBackend(t)
+	defer stop()
+
+	blocks := makeTestMinorBlocks(t, db, sb.MinorBlockChain.CurrentBlock(), 2)
+	for _, block := range blocks {
+		rawdb.WriteMinorBlock(db, block)
+	}
+	xshardBlocks := []core.XShardListWithBlock{
+		{Block: blocks[0], XShardList: []*types.CrossShardTransactionDeposit{}},
+		{Block: blocks[1], XShardList: []*types.CrossShardTransactionDeposit{}},
+	}
+
+	handled, err := sb.commitSidechainReplayIfNeeded(sb.MinorBlockChain.CurrentBlock().Header(), blocks[1].Hash(), xshardBlocks)
+	if err != nil {
+		t.Fatalf("commitSidechainReplayIfNeeded: %v", err)
+	}
+	if !handled {
+		t.Fatal("multi-block sidechain replay should be handled")
+	}
+	for _, block := range blocks {
+		if !sb.MinorBlockChain.HasCommittedBlock(block.Hash()) {
+			t.Fatalf("block %s should be committed after sidechain replay", block.Hash().Hex())
+		}
+	}
+
+	conn := shardStubConn(sb)
+	if conn.batchBroadcastXshardCount != 1 {
+		t.Fatalf("expected one batch x-shard broadcast, got %d", conn.batchBroadcastXshardCount)
+	}
+	if conn.sendMinorHeaderListCount != 1 {
+		t.Fatalf("expected one header-list submission, got %d", conn.sendMinorHeaderListCount)
+	}
+	if len(conn.lastBatchXshardLists) != len(blocks) {
+		t.Fatalf("expected %d x-shard entries, got %d", len(blocks), len(conn.lastBatchXshardLists))
+	}
+	if len(conn.lastHeaderList) != len(blocks) {
+		t.Fatalf("expected %d submitted headers, got %d", len(blocks), len(conn.lastHeaderList))
 	}
 }

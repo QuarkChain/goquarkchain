@@ -207,7 +207,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 			}
 			preHeader = mh
 
-			if !bc.HasCommittedBlock(mh.Hash()) {
+			if !bc.HasCommittedBlock(mh.Hash()) && !bc.HasBodyWithoutState(mh.Hash()) {
 				end = mh.Number - 1
 				continue
 			}
