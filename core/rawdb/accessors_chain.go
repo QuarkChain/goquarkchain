@@ -379,7 +379,6 @@ func DeleteReceipts(db DatabaseDeleter, hash common.Hash) {
 func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteReceipts(db, hash)
 	DeleteBlock(db, hash)
-	DeleteMinorBlockCommitStatus(db, hash)
 }
 
 // DeleteRootBlock removes all block data associated with a hash.
@@ -636,23 +635,4 @@ func GetXShardDepositHashList(db DatabaseReader, h common.Hash) *HashList {
 		return nil
 	}
 	return hList
-}
-
-func WriteCommitMinorBlock(db DatabaseWriter, h common.Hash) {
-	if err := db.Put(makeCommitMinorBlock(h), []byte{1}); err != nil { // value must not empty
-		log.Crit("failed to write commit minor block", "err", err)
-	}
-}
-
-func HasCommitMinorBlock(db DatabaseReader, h common.Hash) bool {
-	if has, err := db.Has(makeCommitMinorBlock(h)); !has || err != nil {
-		return false
-	}
-	return true
-}
-
-func DeleteMinorBlockCommitStatus(db DatabaseDeleter, h common.Hash) {
-	if err := db.Delete(makeCommitMinorBlock(h)); err != nil {
-		log.Crit("Failed to delete commit minor block", "err", err)
-	}
 }

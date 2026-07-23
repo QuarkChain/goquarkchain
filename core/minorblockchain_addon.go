@@ -350,7 +350,6 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
-	m.CommitMinorBlockByHash(gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}
@@ -1021,8 +1020,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		prevRootBlock := m.GetRootBlockByHash(mHeader.PrevRootBlockHash)
 
 		// prev_root_header can be None when the shard is not created at root height 0
-		t := prevRootBlock.Number()
-		if prevRootBlock == nil || prevRootBlock.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &t) {
+		var prevRootHeight uint32
+		if prevRootBlock != nil {
+			prevRootHeight = prevRootBlock.Number()
+		}
+		if prevRootBlock == nil || prevRootHeight == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevRootHeight) {
 			if data := m.ReadCrossShardTxList(h); data != nil {
 				errXshardListAlreadyHave := errors.New("already have")
 				log.Error(m.logInfo, "addrootBlock err-1", errXshardListAlreadyHave)
@@ -1876,14 +1878,6 @@ func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.H
 
 func (m *MinorBlockChain) getXShardDepositHashList(h common.Hash) *rawdb.HashList {
 	return rawdb.GetXShardDepositHashList(m.db, h)
-}
-
-func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
-	return rawdb.HasCommitMinorBlock(m.db, h)
-}
-
-func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
-	rawdb.WriteCommitMinorBlock(m.db, h)
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {

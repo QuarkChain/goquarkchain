@@ -305,11 +305,10 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
-	if s.MinorBlockChain.HasBlock(block.Hash()) {
-		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
+	if s.MinorBlockChain.HasBlock(mHash) {
+		log.Debug("add minor block, known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
-
 	if !s.MinorBlockChain.HasBlock(block.ParentHash()) {
 		log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
 		return
@@ -334,7 +333,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, true); err != nil {
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
 	}
@@ -359,13 +358,9 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
-	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
-		return nil
-	}
-	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	log.Debug(s.logInfo, "currHead", currHead.Number)
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 	if err != nil {
 		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
@@ -385,14 +380,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
-	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead.Number)
+	prevRoot := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+	if prevRoot == nil {
+		return fmt.Errorf("previous root block %s is missing", block.PrevRootBlockHash().Hex())
+	}
+	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRoot.Number()); err != nil {
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
-		s.setHead(currHead.Number)
 		return err
 	}
 
@@ -405,17 +401,14 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
-		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead.Number)
 			return err
 		}
 	}
@@ -446,13 +439,9 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	for _, block := range blockLst {
 		blockHash := block.Hash()
 		if block.Branch().Value != s.branch.Value {
-			continue
+			return fmt.Errorf("sync block branch %d does not match shard branch %d", block.Branch().Value, s.branch.Value)
 		}
-		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
-			continue
-		}
-		//TODO:support BLOCK_COMMITTING
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 		if err != nil {
 			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
@@ -462,8 +451,11 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			return nil
 		}
 		s.mBPool.delBlockInPool(block.Hash())
-		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
-		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
+		prevRoot := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+		if prevRoot == nil {
+			return fmt.Errorf("previous root block %s is missing", block.PrevRootBlockHash().Hex())
+		}
+		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRoot.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
 	}
 	// interrupt the current miner and restart
@@ -476,10 +468,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
 		return err
-	}
-	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header.Hash())
 	}
 	return nil
 }
@@ -535,16 +523,6 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 
 	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip.Header(), s.branch.Value)
 	return
-}
-
-func (s *ShardBackend) setHead(head uint64) {
-	// TODO: This compensation rewind deletes block bodies but may leave stale
-	// transaction lookup entries. Clean up the rolled-back blocks here instead
-	// of adding unconditional index deletion to MinorBlockChain.SetHead, which is
-	// also used by reorg and recovery paths.
-	if err := s.MinorBlockChain.SetHead(head); err != nil {
-		panic(err)
-	}
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
@@ -616,7 +594,7 @@ func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	if header.Number == 0 {
 		return nil
 	}
-	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
+	err := s.MinorBlockChain.CheckMinorBlock([]types.IBlock{block})
 	return err
 }
 

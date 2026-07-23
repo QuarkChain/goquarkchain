@@ -3630,3 +3630,29 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	tb = shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
 	assert.Equal(t, tb, big.NewInt(10000000+1000000+12345+888888+111111))
 }
+
+func TestInsertChainForDepositsForceMultiBlock(t *testing.T) {
+	env := setUp(nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	b1 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b1, _, err := shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b2 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, xshardList, err := shardState.InsertChainForDeposits([]types.IBlock{b1, b2}, true)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(xshardList))
+
+	_, xshardList, err = shardState.InsertChainForDeposits([]types.IBlock{b1}, true)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(xshardList))
+}

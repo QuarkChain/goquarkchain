@@ -311,14 +311,24 @@ func TestSyncMinorBlocks(t *testing.T) {
 	defer ctrl.Finish()
 	shardConns := newFakeConnManager(1, ctrl)
 	for _, block := range blocks {
-		for _, header := range block.MinorBlockHeaders() {
+		headers := block.MinorBlockHeaders()
+		rbc.AddValidatedMinorBlockHeader(headers[0].Hash(), headers[0].CoinbaseAmount)
+		for _, header := range headers[1:] {
 			if rbc.IsMinorBlockValidated(header.Hash()) {
 				t.Errorf("validated minor block hash in block %d is exist", block.NumberU64())
 			}
 		}
 
 		AddBlockListForSyncFunc := func(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
-			for _, header := range block.MinorBlockHeaders() {
+			if len(request.MinorBlockHashList) != len(headers)-1 {
+				t.Fatalf("minor hash list length = %d, want %d", len(request.MinorBlockHashList), len(headers)-1)
+			}
+			for i, hash := range request.MinorBlockHashList {
+				if hash != headers[i+1].Hash() {
+					t.Fatalf("minor hash at %d = %s, want %s", i, hash.Hex(), headers[i+1].Hash().Hex())
+				}
+			}
+			for _, header := range headers[1:] {
 				rbc.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
 			}
 			return &rpc.ShardStatus{
