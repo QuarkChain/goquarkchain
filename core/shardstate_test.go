@@ -1931,7 +1931,11 @@ func TestResetToOldChain(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, shardState.CurrentBlock().Hash(), rs1.Hash())
 	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rs1.Hash())
-	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+	assert.Nil(t, shardState.GetBlockByNumber(2))
+	retainedBlock := shardState.GetMinorBlock(rr2.Hash())
+	if assert.NotNil(t, retainedBlock) {
+		assert.Equal(t, retainedBlock.Hash(), rr2.Hash())
+	}
 }
 
 func TestContractCall(t *testing.T) {
