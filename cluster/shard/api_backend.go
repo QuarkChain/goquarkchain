@@ -416,12 +416,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	return nil
 }
 
-// Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
-//
-// Returns true if blocks are successfully added. False on any error.
-// This function only adds blocks to local and propagate xshard list to other shards.
-// It does NOT notify master because the master should already have the minor header list,
-// and will add them once this function returns successfully.
+// Add blocks in batch to reduce RPCs. It does not broadcast minor blocks to
+// peers, but it broadcasts their x-shard lists and submits their headers to master.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -1328,7 +1328,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, force bool, readOn
 
 		parent = m.GetBlock(parent.ParentHash())
 	}
-	if parent == nil {
+	if qkcCommon.IsNil(parent) {
 		return it.index, nil, nil, nil, errors.New("missing parent")
 	}
 	// Import all the pruned blocks to make the state available
