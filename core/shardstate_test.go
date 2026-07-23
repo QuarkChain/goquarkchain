@@ -2691,13 +2691,14 @@ func TestReorg(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, shardState.CurrentBlock().Hash(), rs1.Hash())
 	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rs1.Hash())
-	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+	assert.Nil(t, shardState.GetBlockByNumber(2))
+	assert.NotNil(t, shardState.GetMinorBlock(rr2.Hash()))
 
 	err = shardState.reorg(shardState.CurrentBlock(), rr1) //rr2->rr1 so rr1
 	assert.NoError(t, err)
 	assert.Equal(t, shardState.CurrentBlock().Hash(), rr1.Hash())
 	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
-	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+	assert.Nil(t, shardState.GetBlockByNumber(2))
 
 	err = shardState.reorg(shardState.CurrentBlock(), rr2) //rr2->rr2 so rr2
 	assert.NoError(t, err)
