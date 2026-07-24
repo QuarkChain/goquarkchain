@@ -182,6 +182,8 @@ func (s *ShardBackend) GetCode(recipient account.Recipient, height *uint64) ([]b
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	if rBlock.Number() > s.genesisRootHeight {
@@ -194,6 +196,13 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	// Serialize root-block handling against AddMinorBlock / AddBlockListForSync on
+	// the same shard, so their broadcast + master-report side effects cannot
+	// interleave with root reorg rollback decisions. The core-layer race
+	// (currentBlock/canonical-index rewrite vs. insertChain) is handled inside
+	// MinorBlockChain.AddRootBlock via chainmu.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	switched = false
@@ -529,6 +538,10 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 }
 
 func (s *ShardBackend) setHead(head uint64) {
+	// TODO: This compensation rewind deletes block bodies but may leave stale
+	// transaction lookup entries. Clean up the rolled-back blocks here instead
+	// of adding unconditional index deletion to MinorBlockChain.SetHead, which is
+	// also used by reorg and recovery paths.
 	if err := s.MinorBlockChain.SetHead(head); err != nil {
 		panic(err)
 	}

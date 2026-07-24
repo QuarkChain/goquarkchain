@@ -282,14 +282,14 @@ func (m *MinorBlockChain) loadLastState() error {
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Empty database, resetting chain")
-		return m.Reset()
+		return m.setHeadToGenesisBlock(m.genesisBlock)
 	}
 	// Make sure the entire head block is available
 	currentBlock := m.GetMinorBlock(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Head block missing, resetting chain", "hash", head)
-		return m.Reset()
+		return m.setHeadToGenesisBlock(m.genesisBlock)
 	}
 
 	// Make sure the state associated with the block is available
@@ -307,10 +307,12 @@ func (m *MinorBlockChain) loadLastState() error {
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
-// already have locked
+// Locks are acquired in chainmu -> mu order, matching the block import path.
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	m.chainmu.Lock()
 	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.setHead(head)
 }
 
@@ -464,16 +466,31 @@ func (m *MinorBlockChain) Reset() error {
 // ResetWithGenesisBlock purges the entire blockchain, restoring it to the
 // specified genesis state.
 func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.setHeadToGenesisBlock(genesis)
+}
+
+// setHeadToGenesisBlock requires chainmu and mu, except during single-threaded
+// construction before the chain is published.
+func (m *MinorBlockChain) setHeadToGenesisBlock(genesis *types.MinorBlock) error {
+	newState, err := m.StateAt(genesis.Root())
+	if err != nil {
+		return err
+	}
+	rawdb.WriteMinorBlock(m.db, genesis)
+
 	// Dump the entire block chain and purge the caches
-	if err := m.SetHead(0); err != nil {
+	if err := m.setHead(0); err != nil {
 		return err
 	}
 
-	rawdb.WriteMinorBlock(m.db, genesis)
-
 	m.genesisBlock = genesis
-	m.insert(m.genesisBlock)
-	m.currentBlock.Store(m.genesisBlock)
+	m.insert(genesis)
+	m.currentEvmState = newState
 
 	return nil
 }

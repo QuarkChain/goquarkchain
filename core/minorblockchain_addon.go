@@ -510,12 +510,9 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	m.currentEvmState, err = m.StateAt(block.Root())
-	if err != nil {
-		log.Error("unexpected err:should have state here", "err", err)
-		return err
-	}
+	m.chainmu.Lock()
 	err = m.reWriteBlockIndexTo(nil, block)
+	m.chainmu.Unlock()
 	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
 	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
 	return err
@@ -899,24 +896,28 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
-	log.Debug(m.logInfo+" CreateBlockToMine", "current", m.CurrentBlock().Number())
+	m.mu.RLock()
+	currRootTip := m.rootTip
+	prevBlock := m.CurrentBlock()
+	m.mu.RUnlock()
+
+	log.Debug(m.logInfo+" CreateBlockToMine", "current", prevBlock.Number())
 	if includeTx == nil {
 		t := true
 		includeTx = &t
 	}
 	realCreateTime := uint64(time.Now().Unix())
 	if createTime == nil {
-		if realCreateTime < m.CurrentBlock().Time()+1 {
-			realCreateTime = m.CurrentBlock().Time() + 1
+		if realCreateTime < prevBlock.Time()+1 {
+			realCreateTime = prevBlock.Time() + 1
 		}
 	} else {
 		realCreateTime = *createTime
 	}
-	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, m.CurrentBlock())
+	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, prevBlock)
 	if err != nil {
 		return nil, err
 	}
-	prevBlock := m.CurrentBlock()
 	if gasLimit == nil {
 		gasLimit = m.gasLimit
 	}
@@ -936,16 +937,17 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	currRootTipHash := m.rootTip.Hash()
+
+	currRootTipHash := currRootTip.Hash()
+	ancestorRootHeader := m.GetRootBlockByHash(prevBlock.PrevRootBlockHash())
+	if !m.isSameRootChain(currRootTip, ancestorRootHeader) {
+		return nil, ErrNotSameRootChain
+	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit,
 		nil, nil, &currRootTipHash)
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 	if err != nil {
 		return nil, err
-	}
-	ancestorRootHeader := m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())
-	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
-		return nil, ErrNotSameRootChain
 	}
 	_, txCursor, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
@@ -1069,9 +1071,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 	}
 
-	// No change to root tip
-	if rBlock.TotalDifficulty().Cmp(m.rootTip.TotalDifficulty()) <= 0 {
-		if !m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
+	// Keep root-tip selection and canonical rewrites mutually exclusive with
+	// insertChain. Lock order is chainmu -> mu.
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+
+	curRootTip := m.GetRootTip()
+	if rBlock.TotalDifficulty().Cmp(curRootTip.TotalDifficulty()) <= 0 {
+		if !m.isSameRootChain(curRootTip, m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())) {
 			return false, ErrNotSameRootChain
 		}
 		return false, nil
@@ -1084,7 +1091,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	} else {
 		m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
 	}
-
 	m.mu.Unlock()
 	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
@@ -1113,16 +1119,18 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 					return false, ErrMinorBlockIsNil
 				}
 			}
-			newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash()) // genesisblock key is rootblock hash
+			newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash())
 			if newGenesis == nil {
 				panic(errors.New("get genesis block is nil"))
 			}
-			m.genesisBlock = newGenesis
-			log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
-			if err := m.Reset(); err != nil {
+			log.Warn(m.logInfo+" ready to reset genesis", "number", newGenesis.Number(), "hash", newGenesis.Hash().String())
+			m.mu.Lock()
+			if err := m.setHeadToGenesisBlock(newGenesis); err != nil {
+				m.mu.Unlock()
 				return false, err
 			}
-			break
+			m.mu.Unlock()
+			return true, nil
 		}
 		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
 		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().TerminalString())
@@ -1134,12 +1142,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
-		var err error
-		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
-			return false, err
-		}
-		m.currentEvmState, err = m.StateAt(newBlock.Root())
-		if err != nil {
+		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}
 	}
@@ -1359,14 +1362,23 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 	return 1
 }
 
-// reWriteBlockIndexTo : already locked
+// reWriteBlockIndexTo requires the caller to hold chainmu. It acquires mu to
+// publish the canonical head and its state together.
 func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
+	newState, err := m.StateAt(newBlock.Root())
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
-	return m.reorg(oldBlock, newBlock)
+	if err := m.reorg(oldBlock, newBlock); err != nil {
+		return err
+	}
+	m.currentEvmState = newState
+	return nil
 }
 
 func (m *MinorBlockChain) GetBranch() account.Branch {
