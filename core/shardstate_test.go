@@ -3630,3 +3630,37 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	tb = shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
 	assert.Equal(t, tb, big.NewInt(10000000+1000000+12345+888888+111111))
 }
+
+// TestIsSameRootChainInvertedArgs verifies that isSameRootChain returns false when
+// the first argument (long) has a lower block number than the second (short).
+//
+// isSameChain assumes long.Number >= short.Number and calls log.Crit otherwise,
+// which terminates the process. The guard in isSameRootChain must intercept this
+// before reaching isSameChain.
+//
+// Trigger in production: reRunBlockWithState calls
+// isSameRootChain(m.rootTip, ancestorRootHeader) where ancestorRootHeader.Number >
+// m.rootTip.Number during startup or after a root chain rewind.
+func TestIsSameRootChainInvertedArgs(t *testing.T) {
+	env := setUp(nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	// Build two root blocks: rb1 (height 1) and rb2 (height 2).
+	rb1 := shardState.rootTip.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	rb2 := rb1.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+
+	// Correct order: long=rb2 (height 2), short=rb1 (height 1).
+	// diff==1 so isSameChain compares rb2.ParentHash()==rb1.Hash() in-memory (no DB lookup).
+	if !shardState.isSameRootChain(rb2, rb1) {
+		t.Fatal("expected isSameRootChain to return true when rb2 is a direct child of rb1")
+	}
+
+	// Inverted order: long=rb1 (height 1) < short=rb2 (height 2).
+	// Without the guard this calls isSameChain which calls log.Crit → process exit.
+	// With the guard it must return false cleanly.
+	result := shardState.isSameRootChain(rb1, rb2)
+	if result != false {
+		t.Fatal("expected isSameRootChain to return false when long.Number < short.Number")
+	}
+}
