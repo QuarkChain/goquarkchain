@@ -51,7 +51,6 @@ var (
 	genesis            = []byte("genesis")
 	countMinor         = []byte("cntM") //minorBlock cnt in rootBlockChain
 	mHeader            = []byte("mhC")  //mHeader coinbase
-	commitBlockByHash  = []byte("cmB")  //CommittedMinorBlock
 	xsHashList         = []byte("xd")
 	mConfiredByRoot    = []byte("mr") //key:mHash value rHash
 )
@@ -177,10 +176,5 @@ func makeRootBlockConfirmingMinorBlock(mBlockID []byte) []byte {
 
 func makeXShardDepositHashList(h common.Hash) []byte {
 	data := append(xsHashList, h.Bytes()...)
-	return data
-}
-
-func makeCommitMinorBlock(h common.Hash) []byte {
-	data := append(commitBlockByHash, h.Bytes()...)
 	return data
 }

@@ -93,6 +93,92 @@ func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int,
 	return db, blockchain, err
 }
 
+func TestMinorSetHeadDeletesBlockBodies(t *testing.T) {
+	_, blockchain, err := newMinorCanonical(nil, new(consensus.FakeEngine), 3, true)
+	if err != nil {
+		t.Fatalf("create canonical chain: %v", err)
+	}
+	defer blockchain.Stop()
+
+	block2 := blockchain.GetBlockByNumber(2).(*types.MinorBlock)
+	block3 := blockchain.GetBlockByNumber(3).(*types.MinorBlock)
+	if err := blockchain.SetHead(1); err != nil {
+		t.Fatalf("SetHead: %v", err)
+	}
+	if blockchain.GetBlockByNumber(2) != nil || blockchain.GetBlockByNumber(3) != nil {
+		t.Fatal("rewound blocks must not remain canonical")
+	}
+	if blockchain.GetMinorBlock(block2.Hash()) != nil || blockchain.GetMinorBlock(block3.Hash()) != nil {
+		t.Fatal("SetHead must delete rewound block bodies")
+	}
+}
+
+func TestMinorSameChainReorgRetainsBodies(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, new(consensus.FakeEngine), 3, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block1 := blockchain.GetBlockByNumber(1).(*types.MinorBlock)
+	block2 := blockchain.GetBlockByNumber(2).(*types.MinorBlock)
+	block3 := blockchain.GetBlockByNumber(3).(*types.MinorBlock)
+	if err := blockchain.reorg(block3, block1); err != nil {
+		t.Fatalf("same-chain reorg: %v", err)
+	}
+	if blockchain.GetMinorBlock(block2.Hash()) == nil || blockchain.GetMinorBlock(block3.Hash()) == nil {
+		t.Fatal("reorg must retain displaced block bodies")
+	}
+	if blockchain.GetBlockByNumber(2) != nil || blockchain.GetBlockByNumber(3) != nil {
+		t.Fatal("reorg must remove displaced canonical mappings")
+	}
+	if _, _, err := blockchain.InsertChainForDeposits([]types.IBlock{block3}, true); err != nil {
+		t.Fatalf("force insert retained block: %v", err)
+	}
+	if blockchain.CurrentBlock().Hash() != block3.Hash() {
+		t.Fatalf("force insert head = %s, want %s", blockchain.CurrentBlock().Hash().Hex(), block3.Hash().Hex())
+	}
+	if err := blockchain.reorg(block3, block1); err != nil {
+		t.Fatalf("second same-chain reorg: %v", err)
+	}
+
+	block4 := makeBlockChain(block3, 1, new(consensus.FakeEngine), db, canonicalSeed)[0]
+	if _, err := blockchain.InsertChain([]types.IBlock{block4}, false); err != nil {
+		t.Fatalf("insert child of retained chain: %v", err)
+	}
+	if blockchain.CurrentBlock().Hash() != block4.Hash() {
+		t.Fatalf("head = %s, want %s", blockchain.CurrentBlock().Hash().Hex(), block4.Hash().Hex())
+	}
+	if block := blockchain.GetBlockByNumber(2); block == nil || block.Hash() != block2.Hash() {
+		t.Fatal("inserting the child must restore intermediate canonical mappings")
+	}
+}
+
+func TestProcFutureBlocksUsesShardCallback(t *testing.T) {
+	db, blockchain, err := newMinorCanonical(nil, new(consensus.FakeEngine), 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blockchain.Stop()
+
+	block := makeBlockChain(blockchain.CurrentBlock(), 1, new(consensus.FakeEngine), db, canonicalSeed)[0]
+	called := 0
+	blockchain.SetBroadcastMinorBlockFunc(func(got *types.MinorBlock) error {
+		called++
+		if got.Hash() != block.Hash() {
+			t.Fatalf("callback block = %s, want %s", got.Hash().Hex(), block.Hash().Hex())
+		}
+		return nil
+	})
+	blockchain.futureBlocks.Add(block.Hash(), block)
+
+	blockchain.procFutureBlocks()
+
+	if called != 1 {
+		t.Fatalf("callback called %d times, want 1", called)
+	}
+}
+
 // TestMinor fork of length N starting from block i
 func testMinorFork(t *testing.T, blockchain *MinorBlockChain, i, n int, full bool, comparator func(td1, td2 *big.Int)) {
 	// Copy old chain up to #i into a new db
@@ -166,7 +252,6 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		}
 		blockchain.mu.Lock()
 		rawdb.WriteMinorBlock(blockchain.db, block.(*types.MinorBlock))
-		rawdb.WriteCommitMinorBlock(blockchain.db, block.Hash())
 		statedb.Commit(true)
 		blockchain.mu.Unlock()
 	}
