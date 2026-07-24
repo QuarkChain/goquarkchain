@@ -539,6 +539,7 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)
+
 		childNumber, childHash, parentHash := block.Number(), block.Hash(), block.ParentHash()
 		block = m.GetMinorBlock(parentHash)
 		if qkcCommon.IsNil(block) {

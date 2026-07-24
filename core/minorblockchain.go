@@ -320,19 +320,19 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 	// Rewind the header chain, deleting all block bodies until then
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
+		preBlock := m.GetMinorBlock(block.ParentHash())
+		if preBlock == nil {
+			return fmt.Errorf("Rewind block missing parent: %d, hash: %s", block.NumberU64(), block.Hash().Hex())
+		}
 		rawdb.DeleteMinorBlock(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(m.GetMinorBlock(block.ParentHash()))
+		m.currentBlock.Store(preBlock)
 	}
 	batch.Write()
-	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
-			// Rewound state missing, rolled back to before pivot, reset to genesis
-			m.currentBlock.Store(m.genesisBlock)
-		}
-	}
-
-	// If either blocks reached nil, reset to the genesis state
+	// Do NOT reset currentBlock to genesis when state is missing here.
+	// InitFromRootBlock calls reRunBlockWithState to rebuild missing state before
+	// calling setHead; resetting to genesis would undo that work and leave the
+	// chain stuck at height 0. The missing-state case is handled by the caller.
 	if currentBlock := m.CurrentBlock(); currentBlock == nil {
 		m.currentBlock.Store(m.genesisBlock)
 	}
@@ -524,7 +524,6 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (m *MinorBlockChain) insert(block *types.MinorBlock) {
-	// Add the block to the canonical chain number scheme and mark as the head
 	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
@@ -723,6 +722,57 @@ func (m *MinorBlockChain) procFutureBlocks() {
 			m.InsertChain(blocks[i:i+1], false)
 		}
 	}
+}
+
+// RollbackToBlock rolls back the chain so that the block with targetHash
+// becomes the new current head. Blocks above targetHash have their commit
+// marker, tx indexes, and canonical hash mapping removed so they can be
+// re-inserted later.
+//
+// The caller must ensure targetHash is an ancestor of the current head
+// (same chain).
+func (m *MinorBlockChain) RollbackToBlock(targetHash common.Hash) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+
+	target := m.GetMinorBlock(targetHash)
+	if target == nil {
+		return fmt.Errorf("RollbackToBlock: target block %x not found", targetHash)
+	}
+
+	// Verify target is on the same chain (ancestor of current head).
+	for cur := m.CurrentBlock(); ; cur = m.GetMinorBlock(cur.ParentHash()) {
+		if cur == nil {
+			return fmt.Errorf("RollbackToBlock: target %x is not an ancestor of current head", targetHash)
+		}
+		if cur.Hash() == targetHash {
+			break
+		}
+		if cur.NumberU64() < target.NumberU64() || cur.NumberU64() == 0 {
+			return fmt.Errorf("RollbackToBlock: target %x is not an ancestor of current head", targetHash)
+		}
+	}
+
+	// Delete commit markers, tx indexes, and canonical hashes in a single batch
+	batch := m.db.NewBatch()
+	for cur := m.CurrentBlock(); cur != nil && cur.Hash() != targetHash; cur = m.GetMinorBlock(cur.ParentHash()) {
+		parent := m.GetMinorBlock(cur.ParentHash())
+		if parent == nil {
+			return fmt.Errorf("RollbackToBlock: parent missing for block %d [%x]", cur.NumberU64(), cur.Hash())
+		}
+		rawdb.DeleteMinorBlockCommitStatus(batch, cur.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, cur.NumberU64())
+		if err := m.removeTxIndexFromBlock(batch, cur); err != nil {
+			return fmt.Errorf("RollbackToBlock: failed to remove tx index for block %d [%x]: %w", cur.NumberU64(), cur.Hash(), err)
+		}
+		m.currentBlock.Store(parent)
+	}
+	if err := batch.Write(); err != nil {
+		return fmt.Errorf("RollbackToBlock: batch write failed: %w", err)
+	}
+
+	rawdb.WriteHeadBlockHash(m.db, targetHash)
+	return nil
 }
 
 // Rollback is designed to remove a chain of links from the database that aren't
@@ -1419,9 +1469,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
-		if err := m.setHead(newBlockNumber); err != nil {
-			return err
-		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1433,7 +1480,22 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 
-	batch.Write()
+	if len(newChain) == 0 {
+		// same-chain reorg: delete canonical hashes for displaced blocks
+		for i := len(oldChain) - 1; i >= 0; i-- {
+			rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, oldChain[i].NumberU64())
+		}
+	}
+
+	if err := batch.Write(); err != nil {
+		return fmt.Errorf("reorg: failed to write tx index deletions: %w", err)
+	}
+
+	if len(newChain) == 0 {
+		// insert after batch.Write() so the head pointer is persisted after canonical deletes
+		m.insert(newBlock.(*types.MinorBlock))
+		log.Warn(m.logInfo+" same chain reorg, set currentBlock", "number", newBlockNumber, "hash", newBlock.Hash())
+	}
 
 	// Insert the new chain, taking care of the proper incremental order
 	for i := len(newChain) - 1; i >= 0; i-- {
