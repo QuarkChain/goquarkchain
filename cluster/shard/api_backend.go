@@ -333,7 +333,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block, true); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
 	}
