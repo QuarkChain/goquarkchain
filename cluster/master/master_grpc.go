@@ -3,9 +3,8 @@ package master
 import (
 	"context"
 	"sync"
-
+	
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 )
 
@@ -22,27 +21,14 @@ func NewServerSideOp(master *QKCMasterBackend) *MasterServerSideOp {
 	}
 }
 
-// addValidatedMinorBlockHeader records a header once. The caller must hold m.mu.
-func (m *MasterServerSideOp) addValidatedMinorBlockHeader(header *types.MinorBlockHeader, coinbaseAmount *types.TokenBalances) bool {
-	hash := header.Hash()
-	if m.master.rootBlockChain.IsMinorBlockValidated(hash) {
-		return false
-	}
-	m.master.rootBlockChain.AddValidatedMinorBlockHeader(hash, coinbaseAmount)
-	return true
-}
-
 func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	data := new(rpc.AddMinorBlockHeaderRequest)
 	if err := serialize.DeserializeFromBytes(req.Data, data); err != nil {
 		return nil, err
 	}
-	m.mu.Lock()
-	if m.addValidatedMinorBlockHeader(data.MinorBlockHeader, data.CoinbaseAmountMap) {
-		m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
-	}
+	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash(), data.CoinbaseAmountMap)
 	m.master.UpdateShardStatus(data.ShardStats)
-	m.mu.Unlock()
+	m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
 
 	rsp := new(rpc.AddMinorBlockHeaderResponse)
 	rsp.ArtificialTxConfig = m.master.artificialTxConfig
@@ -62,11 +48,9 @@ func (m *MasterServerSideOp) AddMinorBlockHeaderList(ctx context.Context, req *r
 	if err := serialize.DeserializeFromBytes(req.Data, gReq); err != nil {
 		return nil, err
 	}
-	m.mu.Lock()
 	for _, header := range gReq.MinorBlockHeaderList {
-		m.addValidatedMinorBlockHeader(header, header.CoinbaseAmount)
+		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
 	}
-	m.mu.Unlock()
 	return &rpc.Response{RpcId: req.RpcId}, nil
 }
 
