@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -44,21 +44,11 @@ func NewMinorChainTask(
 		maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
 		batchSize:        MinorBlockHeaderListLimit,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
-
-			if bc.HasBlock(mTask.header.Hash()) {
-				return nil, nil
-			}
-
 			ancestor, err := mTask.findAncestor(bc)
 			if err != nil {
 				mTask.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
-
-			if !bc.HasBlock(ancestor.Hash()) {
-				return nil, errors.New("Bad ancestor ")
-			}
-
 			return ancestor, nil
 		},
 		getHeaders: func(startheader types.IHeader) ([]types.IHeader, error) {
@@ -104,7 +94,10 @@ func NewMinorChainTask(
 			return ret, nil
 		},
 		needSkip: func(b blockchain) bool {
-			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() || b.HasBlock(mTask.header.Hash()) {
+			tip := b.CurrentHeader()
+			if mTask.header.NumberU64() < tip.NumberU64() ||
+				(mTask.header.NumberU64() == tip.NumberU64() && b.HasCommittedBlock(tip.Hash())) ||
+				b.HasCommittedBlock(mTask.header.Hash()) {
 				return true
 			}
 
@@ -112,6 +105,7 @@ func NewMinorChainTask(
 			if !ok {
 				return false
 			}
+
 			// Do not download if the prev root block is not synced
 			rootBlockHeader := bc.GetRootBlockByHash(mTask.header.PrevRootBlockHash)
 			if rootBlockHeader == nil {
@@ -174,9 +168,13 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 	return mHeaders, nil
 }
 
-func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, error) {
-	mtip := bc.CurrentHeader().(*types.MinorBlockHeader)
-	if m.header.Hash() == mtip.Hash() {
+func (m *minorChainTask) findAncestor(b blockchain) (*types.MinorBlockHeader, error) {
+	if b.HasCommittedBlock(m.header.Hash()) {
+		return nil, nil
+	}
+
+	mtip := b.CurrentHeader().(*types.MinorBlockHeader)
+	if m.header.Hash() == mtip.Hash() && b.HasCommittedBlock(mtip.Hash()) {
 		return mtip, nil
 	}
 
@@ -210,7 +208,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 			}
 			preHeader = mh
 
-			if !bc.HasBlock(mh.Hash()) {
+			if !b.HasCommittedBlock(mh.Hash()) && !b.HasBodyWithoutState(mh.Hash()) {
 				end = mh.Number - 1
 				continue
 			}
@@ -225,6 +223,10 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 			}
 			break
 		}
+	}
+
+	if bestAncestor == nil {
+		return nil, errors.New("No common ancestor found for minor chain")
 	}
 	return bestAncestor, nil
 }

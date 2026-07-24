@@ -3630,3 +3630,40 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	tb = shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
 	assert.Equal(t, tb, big.NewInt(10000000+1000000+12345+888888+111111))
 }
+
+// TestInsertChainForDepositsForceMultiBlock checks that InsertChainForDeposits
+// with force=true processes all blocks in a batch when some already exist.
+// Before the fix, the early return inside insertChain would silently drop
+// every block after the first existing one.
+func TestInsertChainForDepositsForceMultiBlock(t *testing.T) {
+	env := setUp(nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	// Mine and insert block 1 normally.
+	b1 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b1, _, err := shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, uint64(1), shardState.CurrentBlock().NumberU64())
+
+	// Mine block 2 on top of block 1.
+	b2 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, uint64(2), shardState.CurrentBlock().NumberU64())
+
+	// force=true on a batch containing both existing blocks must succeed and
+	// return an xshard entry per block (proving each was re-executed, not skipped).
+	_, xshardLst, err := shardState.InsertChainForDeposits([]types.IBlock{b1, b2}, true)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(xshardLst), "force re-execution of batch must return one xshard entry per block")
+
+	// Inserting a single existing block with force=true must also succeed.
+	_, xshardLst2, err := shardState.InsertChainForDeposits([]types.IBlock{b1}, true)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(xshardLst2), "force re-execution of single existing block must return one xshard entry")
+}

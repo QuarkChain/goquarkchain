@@ -24,6 +24,12 @@ import (
 var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
+
+	// ErrBodyDeleted is returned when the block body was deleted before the
+	// commit marker could be written. The block stays UNCOMMITTED and a later
+	// sync round re-fetches and commits it. Informational only: s.mu serializes
+	// the commit paths against body deletion, so this is not expected in practice.
+	ErrBodyDeleted = errors.New("block body deleted before commit")
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -194,6 +200,13 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	// Serialize root-block handling against AddMinorBlock / AddBlockListForSync on
+	// the same shard, so their broadcast + master-report side effects cannot
+	// interleave with root reorg rollback decisions. The core-layer race
+	// (currentBlock/canonical-index rewrite vs. insertChain) is handled inside
+	// MinorBlockChain.AddRootBlock via chainmu.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	switched = false
@@ -296,14 +309,22 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
-	if s.MinorBlockChain.HasBlock(block.Hash()) {
+	if s.MinorBlockChain.HasCommittedBlock(block.Hash()) {
 		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
 
-	if !s.MinorBlockChain.HasBlock(block.ParentHash()) {
-		log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
-		return
+	// Allow children of committed parents, plus body-only sidechain parents
+	// whose state is pruned so body accumulation can continue.
+	if !s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
+		if err := s.commitUncommittedAncestorsIfPresent(block.ParentHash()); err != nil {
+			log.Warn(s.logInfo+" failed to commit uncommitted ancestors", "parent", block.ParentHash().Hex(), "err", err)
+			return nil
+		}
+		if !s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
+			log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
+			return
+		}
 	}
 
 	//Sanity check on timestamp and block height
@@ -325,7 +346,22 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+	// force=true: any block reaching here is uncommitted (committed blocks
+	// returned at the HasCommittedBlock check above). A body may already be
+	// present but uncommitted - a prior AddMinorBlock inserted it, then failed
+	// before writing the commit marker. force=false would reject that as
+	// ErrKnownBlock and return before AddMinorBlock's force=true recovery runs,
+	// stranding the body permanently. For a fresh block force has no effect.
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, true); err != nil {
+		// Only recover pruned-parent imports when the parent is committed or is
+		// body-only with missing state. Do not advance past a body+state parent
+		// that still lacks its commit marker.
+		if err == core.ErrPrunedAncestor && s.hasCommittedOrBodyWithoutState(block.ParentHash()) {
+			if err := s.AddMinorBlock(block); err != nil {
+				log.Warn(s.logInfo+" sidechain body recovery failed", "err", err)
+			}
+			return nil // next time to handle
+		}
 		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return nil // next time to handle
 	}
@@ -346,38 +382,58 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
 
+	blockHash := block.Hash()
+
+	// Fast path (lock-free): skip if already durably committed.
+	if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+		return nil
+	}
+
+	// Acquire lock and perform the actual addition. Callers block here until
+	// any in-flight processing of this block finishes, then re-check.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
-	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
+
+	// Double-check after acquiring lock.
+	if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 		return nil
-	}
-	//TODO support BLOCK_COMMITTING
-	currHead := s.MinorBlockChain.CurrentBlock().Header()
-	log.Debug(s.logInfo, "currHead", currHead.Number)
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-	if err != nil {
-		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
-		return err
 	}
 
-	if len(xshardLst) != 1 {
-		log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-		return nil
+	currHead := s.MinorBlockChain.CurrentBlock().Header()
+	log.Debug(s.logInfo, "currHead", currHead.Number)
+	_, xshardBlocks, err := s.MinorBlockChain.InsertChainForDepositsWithBlocks([]types.IBlock{block}, true)
+	if err != nil {
+		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardBlocks))
+		return err
 	}
 
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
-	s.mBPool.delBlockInPool(block.Hash())
+	s.mBPool.delBlockInPool(blockHash)
 
-	if xshardLst[0] == nil {
+	if handled, err := s.commitSidechainReplayIfNeeded(currHead, blockHash, xshardBlocks); handled {
+		return err
+	}
+
+	xshardLst := xshardBlocks[0].XShardList
+	if xshardLst == nil {
 		log.Info(s.logInfo+" add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+		}
 		return nil
 	}
 
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
-	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
+	prevRootBlock := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+	if prevRootBlock == nil {
+		s.setHead(currHead.Number)
+		return fmt.Errorf("prev root block not found: %s", block.PrevRootBlockHash().Hex())
+	}
+	prevRootHeight := prevRootBlock.Number()
+	if err := s.conn.BroadcastXshardTxList(block, xshardLst, prevRootHeight); err != nil {
 		s.setHead(currHead.Number)
 		return err
 	}
@@ -390,7 +446,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	requests := &rpc.AddMinorBlockHeaderRequest{
 		MinorBlockHeader:  block.Header(),
 		TxCount:           uint32(block.Transactions().Len()),
-		XShardTxCount:     uint32(len(xshardLst[0])),
+		XShardTxCount:     uint32(len(xshardLst)),
 		ShardStats:        status,
 		CoinbaseAmountMap: block.CoinbaseAmount(),
 	}
@@ -399,18 +455,117 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
-	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
-		go s.miner.HandleNewTip()
-	}
-	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
-		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead.Number)
-			return err
-		}
+
+	// Commit to DB; false means the body was deleted. See ErrBodyDeleted.
+	if !s.MinorBlockChain.CommitMinorBlockByHash(block.Hash()) {
+		log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", block.Hash().Hex())
+		return fmt.Errorf("%w: %s", ErrBodyDeleted, block.Hash().Hex())
 	}
 
+	return s.notifyMinorTipChanged(currHead)
+}
+
+func (s *ShardBackend) hasUncommittedBodyWithoutState(hash common.Hash) bool {
+	return !s.MinorBlockChain.HasCommittedBlock(hash) && s.MinorBlockChain.HasBodyWithoutState(hash)
+}
+
+func (s *ShardBackend) hasCommittedOrBodyWithoutState(hash common.Hash) bool {
+	return s.MinorBlockChain.HasCommittedBlock(hash) || s.hasUncommittedBodyWithoutState(hash)
+}
+
+func (s *ShardBackend) commitUncommittedAncestorsIfPresent(hash common.Hash) error {
+	blocks := make([]*types.MinorBlock, 0)
+	for !s.MinorBlockChain.HasCommittedBlock(hash) && s.MinorBlockChain.HasBlockAndState(hash) {
+		block := s.MinorBlockChain.GetMinorBlock(hash)
+		if block == nil {
+			return nil
+		}
+		blocks = append(blocks, block)
+		hash = block.ParentHash()
+	}
+	if len(blocks) == 0 || !s.MinorBlockChain.HasCommittedBlock(hash) {
+		return nil
+	}
+	for i := len(blocks) - 1; i >= 0; i-- {
+		if err := s.AddMinorBlock(blocks[i]); err != nil {
+			return err
+		}
+		if !s.MinorBlockChain.HasCommittedBlock(blocks[i].Hash()) {
+			return fmt.Errorf("failed to commit ancestor block: %s", blocks[i].Hash().Hex())
+		}
+	}
+	return nil
+}
+
+func (s *ShardBackend) commitSidechainReplayIfNeeded(currHead *types.MinorBlockHeader, requestedHash common.Hash, xShardBlocks []core.XShardListWithBlock) (bool, error) {
+	if len(xShardBlocks) == 0 {
+		return true, nil
+	}
+	if len(xShardBlocks) == 1 && xShardBlocks[0].Block.Hash() == requestedHash {
+		return false, nil
+	}
+
+	// A single incoming block can trigger pruned sidechain reconstruction.
+	// In that case core returns x-shard lists for the replayed blocks, so each
+	// list must be committed with its own block/header instead of using the
+	// single-block path below.
+	if err := s.broadcastAndCommitXShardBlocks(xShardBlocks); err != nil {
+		s.setHead(currHead.Number)
+		return true, err
+	}
+	return true, s.notifyMinorTipChanged(currHead)
+}
+
+func (s *ShardBackend) notifyMinorTipChanged(currHead *types.MinorBlockHeader) error {
+	if s.MinorBlockChain.CurrentBlock().Hash() == currHead.Hash() {
+		return nil
+	}
+	go s.miner.HandleNewTip()
+	return s.broadcastNewTip()
+}
+
+func (s *ShardBackend) broadcastAndCommitXShardBlocks(xShardBlocks []core.XShardListWithBlock) error {
+	blockHashToXShardList := make(map[common.Hash]*XshardListTuple, len(xShardBlocks))
+	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0, len(xShardBlocks))
+
+	for _, xShardBlock := range xShardBlocks {
+		block := xShardBlock.Block
+		blockHash := block.Hash()
+		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+			continue
+		}
+		prevRootBlock := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
+		if prevRootBlock == nil {
+			log.Error(s.logInfo+" prev root block not found", "hash", block.PrevRootBlockHash().Hex())
+			return fmt.Errorf("prev root block not found: %s", block.PrevRootBlockHash().Hex())
+		}
+		blockHashToXShardList[blockHash] = &XshardListTuple{
+			XshardTxList:   xShardBlock.XShardList,
+			PrevRootHeight: prevRootBlock.Number(),
+		}
+		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
+	}
+	if len(uncommittedBlockHeaderList) == 0 {
+		return nil
+	}
+
+	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, s.branch); err != nil {
+		return err
+	}
+	req := &rpc.AddMinorBlockHeaderListRequest{
+		MinorBlockHeaderList: uncommittedBlockHeaderList,
+	}
+	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+		return err
+	}
+	for _, header := range uncommittedBlockHeaderList {
+		blockHash := header.Hash()
+		if !s.MinorBlockChain.CommitMinorBlockByHash(blockHash) {
+			log.Warn(s.logInfo+" block body removed, cancelling commit", "hash", blockHash.Hex())
+			return fmt.Errorf("%w: %s", ErrBodyDeleted, blockHash.Hex())
+		}
+		s.mBPool.delBlockInPool(blockHash)
+	}
 	return nil
 }
 
@@ -430,49 +585,52 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		return nil
 	}
 
-	var (
-		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
-		uncommittedBlockHeaderList = make([]*types.MinorBlockHeader, 0, len(blockLst))
-	)
+	seenInBatch := make(map[common.Hash]struct{})
+	chain := make([]types.IBlock, 0, len(blockLst))
+
 	for _, block := range blockLst {
 		blockHash := block.Hash()
 		if block.Branch().Value != s.branch.Value {
 			continue
 		}
+
 		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+			log.Debug(s.logInfo+" minor block to sync is already committed", "hash", blockHash.Hex())
 			continue
 		}
-		//TODO:support BLOCK_COMMITTING
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-		if err != nil {
-			log.Error(s.logInfo+" Failed to add minor block", "err", err)
-			return err
+		if _, dup := seenInBatch[blockHash]; dup {
+			log.Debug(s.logInfo+" duplicate block in sync batch, skipping", "hash", blockHash.Hex())
+			continue
 		}
-		if len(xshardLst) != 1 {
-			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			return nil
-		}
-		s.mBPool.delBlockInPool(block.Hash())
-		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
-		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
-		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
-	}
-	// interrupt the current miner and restart
-	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
-		return err
-	}
+		seenInBatch[blockHash] = struct{}{}
 
-	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList: uncommittedBlockHeaderList,
+		if len(chain) > 0 {
+			prev := chain[len(chain)-1]
+			if block.NumberU64() != prev.NumberU64()+1 || block.ParentHash() != prev.Hash() {
+				if err := s.insertAndCommitSyncSegment(chain); err != nil {
+					return err
+				}
+				chain = chain[:0]
+			}
+		}
+		chain = append(chain, block)
 	}
-	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+	return s.insertAndCommitSyncSegment(chain)
+}
+
+func (s *ShardBackend) insertAndCommitSyncSegment(chain []types.IBlock) error {
+	if len(chain) == 0 {
+		return nil
+	}
+	_, xShardBlocks, err := s.MinorBlockChain.InsertChainForDepositsWithBlocks(chain, true)
+	if err != nil {
+		log.Error(s.logInfo+" Failed to add minor block segment", "err", err)
 		return err
 	}
-	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header.Hash())
+	for _, block := range chain {
+		s.mBPool.delBlockInPool(block.Hash())
 	}
-	return nil
+	return s.broadcastAndCommitXShardBlocks(xShardBlocks)
 }
 
 // ######################## miner Methods ##############################

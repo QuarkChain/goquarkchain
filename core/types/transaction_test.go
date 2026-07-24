@@ -3,11 +3,10 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"math/big"
 	"reflect"
 	"testing"
-	
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -189,16 +188,7 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 	}
 }
 func TestTxSize(t *testing.T) {
-
-	id1, err := account.CreatRandomIdentity()
-	if err != nil {
-		t.Fatal("CreatIdentityFromKey error: ", err)
-	}
-	defaultFullShardKey, err := id1.GetDefaultFullShardKey()
-	if err != nil {
-		t.Fatal("GetDefaultFullShardKey error: ", err)
-	}
-	acc1 := account.CreatAddressFromIdentity(id1, defaultFullShardKey)
+	prvKey, recipient := defaultTestKey()
 	check := func(f string, got, want interface{}) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
@@ -206,7 +196,7 @@ func TestTxSize(t *testing.T) {
 	}
 	evmTx := NewEvmTransaction(
 		0,
-		acc1.Recipient,
+		recipient,
 		big.NewInt(0),
 		30000,
 		big.NewInt(0),
@@ -219,11 +209,7 @@ func TestTxSize(t *testing.T) {
 		1234,
 	)
 	signer := NewEIP155Signer(1)
-	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
-	if err != nil {
-		t.Fatal("prvKey error: ", err)
-	}
-	evmTx, err = SignTx(evmTx, signer, prvKey)
+	evmTx, err := SignTx(evmTx, signer, prvKey)
 	if err != nil {
 		t.Fatal("SignTx error: ", err)
 	}
@@ -241,7 +227,7 @@ func TestTxSize(t *testing.T) {
 	TOKEN_ID_MAX, _ := new(big.Int).SetString("4873763662273663091", 10)
 	evmTx2 := NewEvmTransaction(
 		TT256.Uint64(),
-		acc1.Recipient,
+		recipient,
 		TT256,
 		TT256.Uint64(),
 		TT256,

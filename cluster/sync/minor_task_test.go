@@ -111,6 +111,9 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if _, err := mbc.InsertChain(blocks, false); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
+	for _, b := range blocks {
+		mbc.CommitMinorBlockByHash(b.Hash())
+	}
 
 	return &mockblockchain{mbc: mbc}, db
 }
@@ -196,22 +199,87 @@ func TestMinorChainTask(t *testing.T) {
 	// retMBlocks, retMHeaders = makeRootChains(retMBlocks[len(retMBlocks)-1], 1000, true)
 	retMBlocks, retMHeaders = makeMinorChains(retMBlocks[len(retMBlocks)-1], 1000, db, true)
 	for _, rh := range retMHeaders[1:] {
-		assert.False(t, bc.HasBlock(rh.Hash()))
+		assert.False(t, bc.HasCommittedBlock(rh.Hash()))
 	}
 
 	mTask.header = retMHeaders[len(retMHeaders)-1]
 	p.retMHeaders, p.retMBlocks = append(p.retMHeaders[20:], retMHeaders...), append(p.retMBlocks[20:], retMBlocks...)
 	assert.NoError(t, mt.Run(bc))
 	for _, rh := range retMHeaders {
-		assert.True(t, bc.HasBlock(rh.Hash()))
+		assert.True(t, bc.HasCommittedBlock(rh.Hash()))
 	}
 
 	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
 }
 
+func TestMinorFindAncestorUsesCommittedOrBodyWithoutState(t *testing.T) {
+	bc, db := newMinorBlockChain(0)
+	mbc := bc.(*mockblockchain).mbc
+	defer mbc.Stop()
+
+	_, headers := makeMinorChains(mbc.GetBlockByNumber(0).(*types.MinorBlock), 5, db, false)
+	p := &mockpeer{retMHeaders: headers}
+	mTask := NewMinorChainTask(p, headers[5]).(*minorChainTask)
+	states := &ancestorStateBlockchain{
+		current:          headers[4],
+		bodies:           make(map[common.Hash]bool),
+		committed:        make(map[common.Hash]bool),
+		bodyWithoutState: make(map[common.Hash]bool),
+	}
+	for _, header := range headers[:5] {
+		states.bodies[header.Hash()] = true
+	}
+
+	// #4 has body+state but no marker, so it needs retry and must not anchor.
+	// #3 has body without state, so it can anchor sidechain continuation.
+	states.committed[headers[2].Hash()] = true
+	states.bodyWithoutState[headers[3].Hash()] = true
+
+	ancestor, err := mTask.findAncestor(states)
+	assert.NoError(t, err)
+	assert.Equal(t, headers[3].Hash(), ancestor.Hash())
+
+	// Once #4 is committed, it is the best local anchor.
+	states.committed[headers[4].Hash()] = true
+	ancestor, err = mTask.findAncestor(states)
+	assert.NoError(t, err)
+	assert.Equal(t, headers[4].Hash(), ancestor.Hash())
+}
+
 /*
  Test helpers.
 */
+
+type ancestorStateBlockchain struct {
+	current          *types.MinorBlockHeader
+	bodies           map[common.Hash]bool
+	committed        map[common.Hash]bool
+	bodyWithoutState map[common.Hash]bool
+}
+
+func (bc *ancestorStateBlockchain) HasCommittedBlock(hash common.Hash) bool {
+	return bc.committed[hash]
+}
+
+func (bc *ancestorStateBlockchain) HasBlock(hash common.Hash) bool {
+	return bc.bodies[hash]
+}
+
+func (bc *ancestorStateBlockchain) HasBodyWithoutState(hash common.Hash) bool {
+	return bc.bodyWithoutState[hash]
+}
+
+func (bc *ancestorStateBlockchain) AddBlock(types.IBlock) error {
+	return nil
+}
+
+func (bc *ancestorStateBlockchain) CurrentHeader() types.IHeader {
+	return bc.current
+}
+
+func (bc *ancestorStateBlockchain) Validator() core.Validator {
+	return nil
+}
 
 func makeMinorChains(parent *types.MinorBlock, height int, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
 	var gen func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen)

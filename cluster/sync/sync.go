@@ -3,7 +3,7 @@ package sync
 import (
 	"math/big"
 	"sync"
-	
+
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,7 +13,9 @@ import (
 
 // A lightweight wrapper over shard chain or root chain.
 type blockchain interface {
+	HasCommittedBlock(common.Hash) bool
 	HasBlock(common.Hash) bool
+	HasBodyWithoutState(common.Hash) bool
 	AddBlock(types.IBlock) error
 	CurrentHeader() types.IHeader
 	Validator() core.Validator
