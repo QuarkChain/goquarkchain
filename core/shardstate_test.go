@@ -3661,3 +3661,17 @@ func TestInsertChainForDepositsForceMultiBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(xshardList))
 }
+
+func TestIsSameRootChainRejectsHigherCandidate(t *testing.T) {
+	env := setUp(nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	rootTip := shardState.GetRootTip()
+	futureRoot := rootTip.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	shardState.putRootBlock(futureRoot, nil)
+
+	if shardState.isSameRootChain(rootTip, futureRoot) {
+		t.Fatal("a root block above the current root tip must not be treated as its ancestor")
+	}
+}
