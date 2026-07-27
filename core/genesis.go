@@ -275,7 +275,6 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	if qkcConfig == nil {
 		qkcConfig = config.NewQuarkChainConfig()
 	}
-	rawdb.WriteCommitMinorBlock(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), qkcConfig)
 	return block, nil
 }
