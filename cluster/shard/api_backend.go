@@ -443,8 +443,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			return err
 		}
 		if len(xshardLst) != 1 {
-			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			return nil
+			return fmt.Errorf("sync block %s at height %d returned %d x-shard lists, want 1", blockHash.Hex(), block.NumberU64(), len(xshardLst))
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRoot := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
