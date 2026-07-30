@@ -20,7 +20,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -71,14 +70,31 @@ func TestEIP155SigningVersion2(t *testing.T) {
 	}
 }
 
-func TestEIP155SigningVersion2RejectsNetworkIDMismatch(t *testing.T) {
+func TestEIP155SigningVersion2UsesTransactionNetworkID(t *testing.T) {
 	key, err := crypto.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
+	recipient := publicKey2Recipient(&key.PublicKey)
 
-	tx := NewEvmTransaction(0, account.Recipient{}, new(big.Int), 0, new(big.Int), 0, 0, 3, 2, nil, 0, 0)
-	if _, err := SignTx(tx, NewEIP155Signer(1), key); err != ErrInvalidNetworkId {
-		t.Fatalf("expected %v, got %v", ErrInvalidNetworkId, err)
+	const networkID = 3
+	signer := NewEIP155Signer(1)
+	tx, err := SignTx(NewEvmTransaction(0, recipient, new(big.Int), 0, new(big.Int), 0, 0, networkID, 2, nil, 0, 0), signer, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, _, _ := tx.RawSignatureValues()
+	recoveryID := new(big.Int).Sub(v, big.NewInt(networkID*2+35))
+	if recoveryID.Sign() < 0 || recoveryID.Cmp(big.NewInt(1)) > 0 {
+		t.Fatalf("unexpected V encoding for transaction network ID: %v", v)
+	}
+
+	from, err := Sender(signer, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if from != recipient {
+		t.Fatalf("expected sender %x, got %x", recipient, from)
 	}
 }

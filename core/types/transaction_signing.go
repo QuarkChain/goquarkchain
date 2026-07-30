@@ -131,13 +131,13 @@ func (s EIP155Signer) SignatureValues(tx *EvmTransaction, sig []byte) (R, S, V *
 	if len(sig) != 65 {
 		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
 	}
+	if tx.Version() != 2 && tx.NetworkId() != s.networkId {
+		return nil, nil, nil, ErrInvalidNetworkId
+	}
 	R = new(big.Int).SetBytes(sig[:32])
 	S = new(big.Int).SetBytes(sig[32:64])
 	if tx.Version() == 2 {
-		if tx.NetworkId() != s.networkId {
-			return nil, nil, nil, ErrInvalidNetworkId
-		}
-		chainIDMul := new(big.Int).Mul(big.NewInt(int64(s.networkId)), big.NewInt(2))
+		chainIDMul := new(big.Int).Mul(big.NewInt(int64(tx.NetworkId())), big.NewInt(2))
 		V = new(big.Int).SetBytes([]byte{sig[64]})
 		V.Add(V, big.NewInt(35))
 		V.Add(V, chainIDMul)
@@ -159,7 +159,7 @@ func (s EIP155Signer) Hash(tx *EvmTransaction) common.Hash {
 		}
 		return hashTyped
 	case 2:
-		return tx.getUnsignedHashForEip155(s.networkId)
+		return tx.getUnsignedHashForEip155(tx.NetworkId())
 	default:
 		return tx.getUnsignedHash()
 	}
