@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -20,6 +21,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
 )
+
+const BlockBatchSize = 100
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 	var (
@@ -96,37 +99,44 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		return nil, ErrMsg("AddBlockListForSync")
 	}
 
+	blockList := make([]*types.MinorBlock, 0, len(mHashList))
 	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
-		if !shard.MinorBlockChain.HasBlock(hash) {
+		block := shard.MinorBlockChain.GetMinorBlock(hash)
+		if block == nil {
 			hashList = append(hashList, hash)
+		} else {
+			blockList = append(blockList, block)
 		}
 	}
 
-	var (
-		BlockBatchSize = 100
-		tHashList      []common.Hash
-	)
 	for len(hashList) > 0 {
 		hLen := BlockBatchSize
-		if len(hashList) > BlockBatchSize {
-			tHashList = hashList[:BlockBatchSize]
-		} else {
-			tHashList = hashList
+		if len(hashList) < hLen {
 			hLen = len(hashList)
 		}
-		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
+		hashBatch := hashList[:hLen]
+		blocks, err := s.connManager.GetMinorBlocks(hashBatch, peerId, branch)
 		if err != nil {
 			log.Error("Failed to sync request from master", "branch", branch, "peer-id", peerId, "err", err)
 			return nil, err
 		}
-		if len(bList) != hLen {
-			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
+		if len(blocks) != len(hashBatch) {
+			return nil, errors.New("failed to add minor blocks for syncing root block: downloaded block count does not match request")
 		}
-		if err := shard.AddBlockListForSync(bList); err != nil {
-			return nil, err
+		for i, block := range blocks {
+			if block == nil || block.Hash() != hashBatch[i] {
+				return nil, fmt.Errorf("downloaded minor block does not match requested hash at index %d", i)
+			}
 		}
+		blockList = append(blockList, blocks...)
 		hashList = hashList[hLen:]
+	}
+	sort.Slice(blockList, func(i, j int) bool {
+		return blockList[i].NumberU64() < blockList[j].NumberU64()
+	})
+	if err := shard.AddBlockListForSync(blockList); err != nil {
+		return nil, err
 	}
 	return shard.MinorBlockChain.GetShardStats()
 }

@@ -240,6 +240,9 @@ func (r *rootChainTask) syncMinorBlocks(
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
+		if rbc.IsMinorBlockValidated(hash) {
+			continue
+		}
 		downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
 	}
 
