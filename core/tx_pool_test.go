@@ -401,7 +401,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	}
 	resetState()
 
-	signer := types.MakeSigner(0)
+	signer := types.MakeSigner(3)
 	tx1, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 100000, big.NewInt(1), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)
 	tx2, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 1000000, big.NewInt(2), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)
 	tx3, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 1000000, big.NewInt(1), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)

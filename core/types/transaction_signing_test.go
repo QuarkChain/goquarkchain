@@ -41,3 +41,60 @@ func TestEIP155Signing(t *testing.T) {
 		t.Errorf("exected from and address to be equal. Got %x want %x", from, recipient)
 	}
 }
+
+func TestEIP155SigningVersion2(t *testing.T) {
+	key, _ := crypto.GenerateKey()
+	recipient := publicKey2Recipient(&key.PublicKey)
+
+	const chainID = 3
+	signer := NewEIP155Signer(chainID)
+	// version 2 is a standard EIP155 transaction: chainId is folded into V.
+	tx, err := SignTx(NewEvmTransaction(0, recipient, new(big.Int), 0, new(big.Int), 0, 0, chainID, 2, nil, 0, 0), signer, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// V must be encoded as recid + chainId*2 + 35 (recid is 0 or 1).
+	v, _, _ := tx.RawSignatureValues()
+	base := new(big.Int).Sub(v, big.NewInt(int64(chainID)*2+35))
+	if base.Cmp(big.NewInt(0)) != 0 && base.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("unexpected V encoding: got %v, recid should be 0 or 1", v)
+	}
+
+	from, err := Sender(signer, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if from != recipient {
+		t.Errorf("expected from and address to be equal. Got %x want %x", from, recipient)
+	}
+}
+
+func TestEIP155SigningVersion2UsesTransactionNetworkID(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipient := publicKey2Recipient(&key.PublicKey)
+
+	const networkID = 3
+	signer := NewEIP155Signer(1)
+	tx, err := SignTx(NewEvmTransaction(0, recipient, new(big.Int), 0, new(big.Int), 0, 0, networkID, 2, nil, 0, 0), signer, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, _, _ := tx.RawSignatureValues()
+	recoveryID := new(big.Int).Sub(v, big.NewInt(networkID*2+35))
+	if recoveryID.Sign() < 0 || recoveryID.Cmp(big.NewInt(1)) > 0 {
+		t.Fatalf("unexpected V encoding for transaction network ID: %v", v)
+	}
+
+	from, err := Sender(signer, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if from != recipient {
+		t.Fatalf("expected sender %x, got %x", recipient, from)
+	}
+}

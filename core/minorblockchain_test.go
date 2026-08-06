@@ -604,7 +604,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
-				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey1)
+				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(3), prvKey1)
 				if err != nil {
 					panic(err)
 				}

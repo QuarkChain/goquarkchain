@@ -120,15 +120,30 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 	}
 }
 
-// SignatureValues returns signature values. This signature
-// needs to be in the [R || S || V] format where V is 0 or 1.
+// SignatureValues returns signature values. The input signature is expected in
+// the [R || S || V] format where the final byte is the recovery id (0 or 1).
+//
+// For QuarkChain-native transactions (version 0/1) the recovery id is encoded Homestead-style
+// as recid+27; the chain id is not folded into V because it is already part of the
+// signing hash. For EIP155 transactions (version 2) the recovery id is encoded as
+// recid + chainId*2 + 35, mirroring the decoding done in Sender.
 func (s EIP155Signer) SignatureValues(tx *EvmTransaction, sig []byte) (R, S, V *big.Int, err error) {
 	if len(sig) != 65 {
 		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
 	}
+	if tx.Version() != 2 && tx.NetworkId() != s.networkId {
+		return nil, nil, nil, ErrInvalidNetworkId
+	}
 	R = new(big.Int).SetBytes(sig[:32])
 	S = new(big.Int).SetBytes(sig[32:64])
-	V = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	if tx.Version() == 2 {
+		chainIDMul := new(big.Int).Mul(big.NewInt(int64(tx.NetworkId())), big.NewInt(2))
+		V = new(big.Int).SetBytes([]byte{sig[64]})
+		V.Add(V, big.NewInt(35))
+		V.Add(V, chainIDMul)
+	} else {
+		V = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	}
 
 	return R, S, V, nil
 }
@@ -136,7 +151,18 @@ func (s EIP155Signer) SignatureValues(tx *EvmTransaction, sig []byte) (R, S, V *
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s EIP155Signer) Hash(tx *EvmTransaction) common.Hash {
-	return tx.getUnsignedHash()
+	switch tx.Version() {
+	case 1:
+		hashTyped, err := tx.typedHash()
+		if err != nil {
+			return common.Hash{}
+		}
+		return hashTyped
+	case 2:
+		return tx.getUnsignedHashForEip155(tx.NetworkId())
+	default:
+		return tx.getUnsignedHash()
+	}
 }
 
 func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (account.Recipient, error) {
