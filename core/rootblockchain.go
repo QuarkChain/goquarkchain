@@ -47,6 +47,12 @@ const (
 	validatedMinorBlockHashes = 128
 )
 
+const (
+	NonStatTy WriteStatus = iota
+	CanonStatTy
+	SideStatTy
+)
+
 // CacheConfig contains the configuration values for the trie caching/pruning
 // that's resident in a blockchain.
 type CacheConfig struct {
@@ -112,6 +118,29 @@ type RootBlockChain struct {
 	isCheckDB           bool
 	posw                consensus.PoSWCalculator
 	rootChainStakesFunc func(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
+}
+
+// WriteStatus status of write
+type WriteStatus byte
+
+func absUint64(a, b uint64) uint64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
+func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
+	pub, err := crypto.Ecrecover(sighash, sig[:])
+	if err != nil {
+		return nil, err
+	}
+	if len(pub) == 0 || pub[0] != 4 {
+		return nil, errors.New("invalid public key")
+	}
+	var addr account.Recipient
+	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	return &addr, nil
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -402,15 +431,6 @@ func (bc *RootBlockChain) procFutureBlocks() {
 	}
 }
 
-// WriteStatus status of write
-type WriteStatus byte
-
-const (
-	NonStatTy WriteStatus = iota
-	CanonStatTy
-	SideStatTy
-)
-
 // Rollback is designed to remove a chain of links from the database that aren't
 // certain enough to be valid.
 func (bc *RootBlockChain) Rollback(chain []common.Hash) {
@@ -440,7 +460,7 @@ func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock) (err error)
 	return nil
 }
 
-//todo
+// todo
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status WriteStatus, err error) {
 	bc.wg.Add(1)
@@ -541,13 +561,6 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 
 	bc.PostChainEvents(events)
 	return n, err
-}
-
-func absUint64(a, b uint64) uint64 {
-	if a > b {
-		return a - b
-	}
-	return b - a
 }
 
 // insertChain is the internal implementation of insertChain, which assumes that
@@ -1059,7 +1072,7 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
-//For remote miner to getWork, no signature verified
+// For remote miner to getWork, no signature verified
 func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
@@ -1071,7 +1084,8 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
-		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+		stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes, stakePerBlock)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
@@ -1082,6 +1096,10 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
 	}
 	return rHeader.GetDifficulty(), 1, nil
+}
+
+func (bc *RootBlockChain) GetPoSW() consensus.PoSWCalculator {
+	return bc.posw
 }
 
 func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
@@ -1123,11 +1141,11 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	return bc.posw.PoSWDiffAdjust(header, stakes, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+	stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+	return bc.posw.PoSWDiffAdjust(header, stakes, stakePerBlock)
 }
 
 func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
-
 	// get chain 0 shard 0's last confirmed block header
 	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
 	if lastConfirmedMinorBlockHeader == nil {
@@ -1152,17 +1170,12 @@ func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, e
 	return stakes, nil
 }
 
-func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
-	pub, err := crypto.Ecrecover(sighash, sig[:])
-	if err != nil {
-		return nil, err
+func (bc *RootBlockChain) GetStakePerBlock(time uint64) *big.Int {
+	if bc.chainConfig.EnableRootPoswStakingDecayTimestamp == 0 || time < bc.chainConfig.EnableRootPoswStakingDecayTimestamp {
+		return bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock
 	}
-	if len(pub) == 0 || pub[0] != 4 {
-		return nil, errors.New("invalid public key")
-	}
-	var addr account.Recipient
-	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
-	return &addr, nil
+
+	return new(big.Int).Div(bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock, new(big.Int).SetUint64(2))
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
@@ -1256,7 +1269,6 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	genesisTokenBalance.Add(genesisTokenBalance, bc.getCoinbaseAmount(rootBlock.NumberU64()))
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
 	return rewardTokenMap, nil
-
 }
 
 func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
@@ -1427,7 +1439,8 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 		return nil, nil
 	}
 	stakes, _ := bc.getSignedPoSWStakes(header)
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, *bc.chainConfig.Root.PoSWConfig.TotalStakePerBlock)
+	stakePerBlock := bc.GetStakePerBlock(header.GetTime())
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, stakePerBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,

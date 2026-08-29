@@ -39,14 +39,14 @@ func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 }
 
 /*PoSWDiffAdjust PoSW diff calc,already locked by insertChain*/
-func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int, stakePerBlock big.Int) (*big.Int, error) {
+func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int, stakePerBlock *big.Int) (*big.Int, error) {
 	diff := header.GetDifficulty()
 	if stakes == nil {
 		return diff, nil
 	}
 	// Evaluate stakes before the to-be-added block
 
-	blockThreshold := new(big.Int).Div(stakes, &stakePerBlock).Uint64()
+	blockThreshold := new(big.Int).Div(stakes, stakePerBlock).Uint64()
 	if blockThreshold == uint64(0) {
 		return diff, nil
 	}
@@ -98,10 +98,10 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 	if err != nil {
 		return 0, err
 	}
-	coinbaseBytes := common.Address(coinbase).Bytes()
+	coinbaseBytes := coinbase.Bytes()
 	var count uint64 = 0
 	for _, cb := range coinbases {
-		if bytes.Compare(common.Address(cb).Bytes(), coinbaseBytes) == 0 {
+		if bytes.Compare(cb.Bytes(), coinbaseBytes) == 0 {
 			count++
 		}
 	}
@@ -156,7 +156,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	return addrs, nil
 }
 
-func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient, stakePreBlock big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
+func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient, stakePreBlock *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
 	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), address)
 	if err != nil {
 		return header.GetDifficulty(), 0, 0, err
@@ -164,7 +164,7 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address accoun
 	if !p.IsPoSWEnabled(header.GetTime(), header.NumberU64()) || stakes == nil {
 		return header.GetDifficulty(), 0, blockCnt, nil
 	}
-	blockThreshold := new(big.Int).Div(stakes, &stakePreBlock).Uint64()
+	blockThreshold := new(big.Int).Div(stakes, stakePreBlock).Uint64()
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
